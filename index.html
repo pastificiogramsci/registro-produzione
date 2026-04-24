@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="theme-color" content="#92400e">
+    <title>Registro Produzione — Pastificio Gramsci</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/dropbox@10.34.0/dist/Dropbox-sdk.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        /* ── Input / select / textarea ── */
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        input[type="password"],
+        select,
+        textarea {
+            min-height: 44px;
+            font-size: 16px;
+            /* evita zoom su iOS */
+        }
+
+        @media (min-width: 768px) {
+
+            input[type="text"],
+            input[type="number"],
+            input[type="date"],
+            input[type="password"],
+            select,
+            textarea {
+                min-height: 38px;
+                font-size: 0.95rem;
+            }
+        }
+
+        /* ── Button ── */
+        button {
+            min-height: 44px;
+            touch-action: manipulation;
+        }
+
+        @media (min-width: 768px) {
+            button {
+                min-height: 36px;
+            }
+        }
+
+        /* ── Tab nav ── */
+        .tab-btn.active {
+            border-bottom-color: #92400e;
+            color: #92400e;
+            font-weight: 700;
+        }
+
+        /* ── Scrollbar nascosta (scroll orizzontale tab) ── */
+        .scrollbar-hide {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* ── Modal overlay ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .5);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-box {
+            background: white;
+            border-radius: .75rem;
+            width: 100%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        /* Modal più larghi su desktop */
+        @media (min-width: 1024px) {
+            .modal-box {
+                max-width: 680px;
+            }
+        }
+
+        /* ── Card grid ── */
+        @media (min-width: 768px) {
+            .card-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.5rem;
+            }
+        }
+
+        @media (min-width: 1280px) {
+            .card-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* ── Toast centrato su mobile ── */
+        @media (max-width: 639px) {
+            .toast-el {
+                left: 50% !important;
+                right: auto !important;
+                transform: translateX(-50%) !important;
+                width: max-content;
+                max-width: 90vw;
+            }
+        }
+
+        /* ── Stampa ── */
+        @media print {
+
+            header,
+            nav,
+            .no-print {
+                display: none !important;
+            }
+
+            main {
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+
+    <!-- Loader -->
+    <div id="app-loader" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
+        <div class="text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-amber-800 mx-auto mb-4"></div>
+            <p class="text-xl font-bold text-gray-700">Caricamento...</p>
+            <p class="text-sm text-gray-500 mt-2" id="loader-status">Avvio...</p>
+        </div>
+    </div>
+
+    <!-- Login -->
+    <div id="auth-screen"
+        class="fixed inset-0 bg-gradient-to-br from-amber-800 to-amber-950 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+            <h1 class="text-3xl font-bold text-center mb-2">🍝 Pastificio Gramsci</h1>
+            <h2 class="text-lg text-center mb-6 text-gray-500">Registro di Produzione</h2>
+            <form id="login-form" onsubmit="app.handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Password</label>
+                    <input type="password" id="login-password" class="w-full px-4 py-2 border rounded-lg" required
+                        autofocus>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="remember-me" class="mr-2 w-4 h-4">
+                    <label for="remember-me" class="text-sm">Ricordami per 30 giorni</label>
+                </div>
+                <button type="submit"
+                    class="w-full bg-amber-800 text-white py-3 rounded-lg font-bold hover:bg-amber-900">
+                    Accedi
+                </button>
+                <p id="login-error" class="text-red-600 text-sm text-center hidden"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-amber-900 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between">
+            <h1 class="text-base font-bold">🍝 Pastificio Gramsci</h1>
+            <button onclick="app.syncWithDropbox()"
+                class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-medium">
+                🔄 Sync
+            </button>
+        </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="bg-white shadow-sm sticky top-10 z-30 border-b">
+        <div class="max-w-5xl mx-auto px-2">
+            <div class="flex overflow-x-auto scrollbar-hide">
+                <button
+                    class="tab-btn flex-1 px-3 py-2.5 border-b-2 border-transparent whitespace-nowrap text-xs font-semibold text-gray-600 active"
+                    data-tab="materie" onclick="app.switchTab('materie')">📦 Materie</button>
+                <button
+                    class="tab-btn flex-1 px-3 py-2.5 border-b-2 border-transparent whitespace-nowrap text-xs font-semibold text-gray-600"
+                    data-tab="ricette" onclick="app.switchTab('ricette')">📒 Ricette</button>
+                <button
+                    class="tab-btn flex-1 px-3 py-2.5 border-b-2 border-transparent whitespace-nowrap text-xs font-semibold text-gray-600"
+                    data-tab="produzione" onclick="app.switchTab('produzione')">🍳 Produzione</button>
+                <button
+                    class="tab-btn flex-1 px-3 py-2.5 border-b-2 border-transparent whitespace-nowrap text-xs font-semibold text-gray-600"
+                    data-tab="settings" onclick="app.switchTab('settings')">⚙️</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main -->
+    <main class="max-w-5xl mx-auto px-4 py-5">
+
+        <!-- ══════════════════════════════════════════
+         TAB: MATERIE PRIME
+    ══════════════════════════════════════════ -->
+        <div id="materie-content" class="tab-content">
+
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">📦 Materie Prime</h2>
+                    <p class="text-xs text-gray-400">Anagrafica e lotti · FIFO automatico</p>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mb-4 flex-wrap items-center">
+                <button onclick="MateriePrimeModule.openModalNewMP()"
+                    class="bg-amber-800 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-amber-900 shadow">
+                    + Nuova Materia Prima
+                </button>
+                <div class="flex-1 min-w-48">
+                    <input type="text" id="mp-search" placeholder="🔍 Cerca materia prima..."
+                        class="w-full px-4 py-2.5 border rounded-lg text-sm"
+                        oninput="MateriePrimeModule.renderListaMP()">
+                </div>
+            </div>
+
+            <div id="materie-list"></div>
+
+        </div>
+
+        <!-- ══════════════════════════════════════════
+     TAB: RICETTARIO
+══════════════════════════════════════════ -->
+        <div id="ricette-content" class="tab-content hidden">
+
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">📒 Ricettario</h2>
+                    <p class="text-xs text-gray-400">Ricette prodotti finiti e semilavorati</p>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mb-4 flex-wrap items-center">
+                <button onclick="RicetteModule.openModalNewRicetta()"
+                    class="bg-amber-700 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-amber-800 shadow">
+                    + Nuova Ricetta
+                </button>
+
+                <!-- Filtro categoria -->
+                <select id="ric-filtro-cat" class="px-4 py-2 border rounded-lg text-sm text-gray-600"
+                    onchange="RicetteModule.renderListaRicette()">
+                    <option value="tutti">Tutte le categorie</option>
+                    <option value="Pasta fresca ripiena">🍝 Pasta fresca ripiena</option>
+                    <option value="Gastronomia">🥘 Gastronomia</option>
+                    <option value="Sfoglia">🍃 Sfoglia</option>
+                    <option value="Semilavorato base">🧱 Semilavorato base</option>
+                    <option value="Semilavorato composto">🔧 Semilavorato composto</option>
+                </select>
+
+                <!-- Ricerca -->
+                <div class="flex-1 min-w-48">
+                    <input type="text" id="ric-search" placeholder="🔍 Cerca ricetta..."
+                        class="w-full px-4 py-2 border rounded-lg text-sm"
+                        oninput="RicetteModule.cercaRicetta(this.value)">
+                </div>
+            </div>
+
+            <div id="ricette-list"></div>
+        </div>
+
+        <!-- ══════════════════════════════════════════
+        TAB: PRODUZIONE (unificato)
+        ══════════════════════════════════════════ -->
+        <div id="produzione-content" class="tab-content hidden">
+
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">🍳 Produzione</h2>
+                    <p class="text-xs text-gray-400">Semilavorati e prodotti finiti</p>
+                </div>
+            </div>
+
+            <div class="space-y-2 mb-4">
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="ProduzioneModule.openModalNew()"
+                        class="bg-amber-800 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-amber-900 text-sm">
+                        + Nuova
+                    </button>
+                    <button onclick="ProduzioneModule.stampaRegistro()"
+                        class="bg-gray-700 text-white px-3 py-2.5 rounded-lg hover:bg-gray-800 text-sm">
+                        🖨
+                    </button>
+                    <button onclick="ProduzioneModule.apriRicercaLotto()"
+                        class="bg-blue-700 text-white px-3 py-2.5 rounded-lg hover:bg-blue-800 text-sm">
+                        🔍
+                    </button>
+                    <div class="flex rounded-lg border border-gray-300 overflow-hidden text-sm">
+                        <button onclick="ProduzioneModule.setFiltroRange('oggi')" id="btn-range-oggi"
+                            class="flex-1 py-2 px-4 bg-white hover:bg-gray-50 text-gray-600 border-r border-gray-300">
+                            Oggi
+                        </button>
+                        <button onclick="ProduzioneModule.setFiltroRange('settimana')" id="btn-range-settimana"
+                            class="flex-1 py-2 px-4 bg-amber-800 text-white font-semibold">
+                            Settimana
+                        </button>
+                        <button onclick="ProduzioneModule.setFiltroRange('tutto')" id="btn-range-tutto"
+                            class="flex-1 py-2 px-4 bg-white hover:bg-gray-50 text-gray-600 border-l border-gray-300">
+                            Tutto
+                        </button>
+                    </div>
+                    <input type="text" id="prd-search" placeholder="🔍 Cerca prodotto o lotto..."
+                        class="flex-1 min-w-48 px-4 py-2 border rounded-lg text-sm"
+                        oninput="ProduzioneModule.renderLista()">
+                    <input type="date" id="prd-filtro-data" class="px-2 py-2 border rounded-lg text-sm"
+                        onchange="ProduzioneModule.renderLista()">
+                    <button onclick="document.getElementById('prd-filtro-data').value='';ProduzioneModule.renderLista()"
+                        class="text-gray-400 hover:text-gray-600 px-1">✕</button>
+                </div>
+            </div>
+
+            <div id="produzione-list"></div>
+
+            <!-- ══════════════════════════════════════════
+         TAB: IMPOSTAZIONI
+    ══════════════════════════════════════════ -->
+            <div id="settings-content" class="tab-content hidden">
+                <div class="bg-gradient-to-r from-gray-600 to-gray-700 text-white p-5 rounded-xl mb-5">
+                    <h2 class="text-2xl font-bold">⚙️ Impostazioni</h2>
+                </div>
+
+                <div class="bg-white rounded-xl shadow p-5 mb-4">
+                    <h3 class="text-lg font-bold mb-3">📦 Sincronizzazione Dropbox</h3>
+                    <div id="dropbox-status" class="mb-3 text-gray-500 text-sm">Caricamento...</div>
+                    <div id="dropbox-actions"></div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow p-5 mb-4">
+                    <h3 class="text-lg font-bold mb-3">💾 Backup</h3>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button onclick="app.exportData()"
+                            class="flex-1 bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 font-medium">
+                            📤 Esporta JSON
+                        </button>
+                        <button onclick="app.importData()"
+                            class="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 font-medium">
+                            📥 Importa JSON
+                        </button>
+                    </div>
+                    <input type="file" id="import-file-input" accept=".json" class="hidden">
+                </div>
+
+                <div class="bg-white rounded-xl shadow p-5 mb-4">
+                    <h3 class="text-lg font-bold mb-3">🔐 Sicurezza</h3>
+                    <button onclick="app.changePassword()"
+                        class="bg-amber-800 text-white px-4 py-2 rounded-lg hover:bg-amber-900">
+                        🔑 Modifica Password
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-xl shadow p-5 border-2 border-red-200">
+                    <h3 class="text-lg font-bold mb-2 text-red-600">⚠️ Zona Pericolosa</h3>
+                    <button onclick="app.resetAllData()"
+                        class="w-full bg-red-600 text-white px-4 py-2.5 rounded-lg hover:bg-red-700 font-medium">
+                        💣 Cancella TUTTI i dati
+                    </button>
+                    <p class="text-xs text-red-500 mt-2">Azione irreversibile</p>
+                </div>
+            </div>
+
+    </main>
+
+    <!-- ══════════════════════════════════════════
+     MODAL: NUOVA / MODIFICA MATERIA PRIMA
+══════════════════════════════════════════ -->
+    <div id="mp-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="bg-amber-800 text-white p-5 rounded-t-xl">
+                <h3 class="text-xl font-bold" id="mp-modal-title">+ Nuova Materia Prima</h3>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="mp-form-id">
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        Nome <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="mp-form-nome" placeholder="Es. Farina 00, Uova fresche, Vitello…"
+                        class="w-full px-4 py-2 border rounded-lg">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Fornitore abituale</label>
+                    <input type="text" id="mp-form-fornitore" placeholder="Es. Molino Rossetto, Avicola Valle…"
+                        class="w-full px-4 py-2 border rounded-lg">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Unità di misura</label>
+                    <select id="mp-form-unita" class="w-full px-4 py-2 border rounded-lg">
+                        <option value="kg">kg</option>
+                        <option value="g">g</option>
+                        <option value="lt">lt</option>
+                        <option value="pz">pz</option>
+                        <option value="sacchi">sacchi</option>
+                        <option value="confezioni">confezioni</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Note</label>
+                    <textarea id="mp-form-note" rows="2" placeholder="Note opzionali…"
+                        class="w-full px-4 py-2 border rounded-lg"></textarea>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button onclick="MateriePrimeModule.closeModalMP()"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                        Annulla
+                    </button>
+                    <button onclick="MateriePrimeModule.saveModalMP()"
+                        class="flex-1 bg-amber-800 text-white py-2.5 rounded-lg font-semibold hover:bg-amber-900">
+                        ✓ Salva
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+     MODAL: NUOVO CARICO
+══════════════════════════════════════════ -->
+    <div id="car-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="bg-amber-700 text-white p-5 rounded-t-xl">
+                <h3 class="text-xl font-bold">+ Nuovo Carico</h3>
+                <p class="text-sm opacity-80 mt-0.5" id="car-modal-mp"></p>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="car-form-mpId">
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Fornitore</label>
+                    <input type="text" id="car-form-fornitore" placeholder="Es. Molino Rossetto…"
+                        class="w-full px-4 py-2 border rounded-lg">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        Lotto fornitore
+                        <span class="text-gray-400 font-normal">(lascia vuoto se non disponibile)</span>
+                    </label>
+                    <input type="text" id="car-form-lotto" placeholder="Es. L240419A — lascia vuoto per lotto interno"
+                        class="w-full px-4 py-2 border rounded-lg font-mono">
+                    <p class="text-xs text-gray-400 mt-1">
+                        💡 Se il fornitore non ha un lotto (es. panettiere), lascia vuoto: verrà generato
+                        automaticamente un riferimento interno.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">
+                            Data arrivo <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" id="car-form-data" class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">Scadenza / TMC</label>
+                        <input type="date" id="car-form-scadenza" class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        📷 Foto DDT / etichetta
+                        <span class="text-gray-400 font-normal">(link Google Drive)</span>
+                    </label>
+                    <input type="text" id="car-form-foto" placeholder="Incolla il link della foto da Google Drive…"
+                        class="w-full px-4 py-2 border rounded-lg font-mono text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Note</label>
+                    <textarea id="car-form-note" rows="2" placeholder="Es. num. DDT, anomalie all'arrivo…"
+                        class="w-full px-4 py-2 border rounded-lg"></textarea>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button onclick="MateriePrimeModule.closeModalCarico()"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                        Annulla
+                    </button>
+                    <button onclick="MateriePrimeModule.saveModalCarico()"
+                        class="flex-1 bg-amber-700 text-white py-2.5 rounded-lg font-semibold hover:bg-amber-800">
+                        ✓ Registra carico
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+     MODAL: LISTA LOTTI
+══════════════════════════════════════════ -->
+    <div id="lotti-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="bg-gray-700 text-white p-5 rounded-t-xl flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold">📋 Lotti</h3>
+                    <p class="text-sm opacity-80 mt-0.5" id="lotti-modal-mp"></p>
+                </div>
+                <button onclick="MateriePrimeModule.closeModalLotti()"
+                    class="text-white/70 hover:text-white text-2xl leading-none">×</button>
+            </div>
+            <input type="hidden" id="lotti-modal-mpId">
+            <div class="p-4">
+                <div id="lotti-modal-list"></div>
+            </div>
+            <div class="p-4 border-t">
+                <button
+                    onclick="MateriePrimeModule.openModalCarico(document.getElementById('lotti-modal-mpId').value); MateriePrimeModule.closeModalLotti();"
+                    class="w-full bg-amber-700 text-white py-2.5 rounded-lg font-semibold hover:bg-amber-800">
+                    + Aggiungi carico
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+     MODAL: NUOVA / MODIFICA RICETTA
+══════════════════════════════════════════ -->
+    <div id="ric-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="bg-amber-700 text-white p-5 rounded-t-xl">
+                <h3 class="text-xl font-bold" id="ric-modal-title">+ Nuova Ricetta</h3>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="ric-form-id">
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        Nome <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="ric-form-nome" placeholder="Es. Agnolotti del plin, Lasagne bolognese…"
+                        class="w-full px-4 py-2 border rounded-lg">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Categoria</label>
+                    <select id="ric-form-categoria" class="w-full px-4 py-2 border rounded-lg"
+                        onchange="RicetteModule.onCategoriaChange()">
+                        <option value="Pasta fresca ripiena">🍝 Pasta fresca ripiena</option>
+                        <option value="Gastronomia">🥘 Gastronomia</option>
+                        <option value="Sfoglia">🍃 Sfoglia</option>
+                        <option value="Semilavorato base">🧱 Semilavorato base</option>
+                        <option value="Semilavorato composto">🔧 Semilavorato composto</option>
+                    </select>
+                </div>
+
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-2">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="ric-form-sml" class="w-4 h-4"
+                            onchange="RicetteModule.toggleVendibile()">
+                        <span class="text-sm font-semibold text-orange-800">
+                            È un semilavorato
+                        </span>
+                    </label>
+                    <p class="text-xs text-orange-600 ml-6">
+                        Ragù, besciamella, arrosti, ripieni — prodotti in anticipo con lotto SML
+                    </p>
+                    <div id="ric-form-vendibile-row" class="hidden ml-6">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="ric-form-vendibile" class="w-4 h-4">
+                            <span class="text-sm text-orange-700">Vendibile anche direttamente</span>
+                        </label>
+                        <p class="text-xs text-gray-400 mt-0.5">
+                            Es. ragù venduto al banco, palline di spinaci
+                        </p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        Shelf life consigliata
+                        <span class="text-gray-400 font-normal">(giorni)</span>
+                    </label>
+                    <input type="number" id="ric-form-shelf" min="1" max="365"
+                        placeholder="Es. 4 (frigo), 7 (sottovuoto), 90 (freezer)"
+                        class="w-full px-4 py-2 border rounded-lg">
+                    <p class="text-xs text-gray-400 mt-1">
+                        Verrà usata per calcolare automaticamente la scadenza in produzione
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Note</label>
+                    <textarea id="ric-form-note" rows="2" placeholder="Note opzionali…"
+                        class="w-full px-4 py-2 border rounded-lg"></textarea>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button onclick="RicetteModule.closeModalRicetta()"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                        Annulla
+                    </button>
+                    <button onclick="RicetteModule.saveModalRicetta()"
+                        class="flex-1 bg-amber-700 text-white py-2.5 rounded-lg font-semibold hover:bg-amber-800">
+                        ✓ Salva
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+     MODAL: INGREDIENTI RICETTA
+══════════════════════════════════════════ -->
+    <div id="ing-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="bg-amber-800 text-white p-5 rounded-t-xl flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold">🥚 Ingredienti</h3>
+                    <p class="text-sm opacity-80 mt-0.5" id="ing-modal-titolo"></p>
+                </div>
+                <button onclick="RicetteModule.closeModalIngredienti()"
+                    class="text-white/70 hover:text-white text-2xl leading-none">×</button>
+            </div>
+            <input type="hidden" id="ing-modal-ricettaId">
+
+            <!-- Lista ingredienti esistenti -->
+            <div class="p-4">
+                <div id="ing-modal-list"></div>
+            </div>
+
+            <!-- Form aggiungi ingrediente -->
+            <div class="border-t p-4 bg-gray-50 rounded-b-xl space-y-3">
+                <p class="text-sm font-semibold text-gray-700">+ Aggiungi ingrediente</p>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Tipo</label>
+                        <select id="ing-form-tipo" class="w-full px-3 py-2 border rounded-lg text-sm"
+                            onchange="RicetteModule.aggiornaSelectIngrediente(this.value)">
+                            <option value="mp">Materia Prima</option>
+                            <option value="sml">Semilavorato</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Ingrediente</label>
+                        <select id="ing-form-ref" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            <option value="">— Seleziona —</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Quantità (opz.)</label>
+                        <input type="number" id="ing-form-quantita" step="0.01" placeholder="Es. 0.5"
+                            class="w-full px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Unità</label>
+                        <select id="ing-form-unita" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                            <option value="lt">lt</option>
+                            <option value="pz">pz</option>
+                            <option value="q.b.">q.b.</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Note</label>
+                    <input type="text" id="ing-form-note" placeholder="Es. solo albume, surgelato…"
+                        class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+
+                <button onclick="RicetteModule.saveIngrediente()"
+                    class="w-full bg-amber-800 text-white py-2.5 rounded-lg font-semibold hover:bg-amber-900">
+                    + Aggiungi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+     MODAL: NUOVA PRODUZIONE
+    ══════════════════════════════════════════ -->
+    <div id="prd-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="bg-green-700 text-white p-5 rounded-t-xl">
+                <h3 class="text-xl font-bold">🍝 Nuova Produzione</h3>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="prd-form-id">
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        Ricetta <span class="text-red-500">*</span>
+                    </label>
+                    <select id="prd-form-ricetta" class="w-full px-4 py-2 border rounded-lg"
+                        onchange="ProduzioneModule.onRicettaChange()">
+                        <option value="">— Seleziona ricetta —</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">
+                            Data <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" id="prd-form-data" class="w-full px-4 py-2 border rounded-lg"
+                            onchange="ProduzioneModule.onDataChange()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">
+                            Scadenza
+                            <span class="text-green-600 font-normal text-xs">(auto)</span>
+                        </label>
+                        <input type="date" id="prd-form-scadenza" class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">Quantità</label>
+                        <input type="number" id="prd-form-quantita" step="0.01" placeholder="Es. 3"
+                            class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">Unità</label>
+                        <select id="prd-form-unita" class="w-full px-4 py-2 border rounded-lg">
+                            <option value="kg">kg</option>
+                            <option value="pz">pz</option>
+                            <option value="vaschette">vaschette</option>
+                            <option value="porzioni">porzioni</option>
+                            <option value="lt">lt</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Operatore</label>
+                    <input type="text" id="prd-form-operatore" placeholder="Nome di chi ha prodotto"
+                        class="w-full px-4 py-2 border rounded-lg">
+                </div>
+
+                <!-- Lotti MP — popolato dinamicamente -->
+                <div id="prd-lotti-mp"></div>
+
+                <!-- Lotti SML — popolato dinamicamente -->
+                <div id="prd-lotti-sml"></div>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Note</label>
+                    <textarea id="prd-form-note" rows="2" placeholder="Note opzionali…"
+                        class="w-full px-4 py-2 border rounded-lg"></textarea>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button onclick="ProduzioneModule.closeModal()"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                        Annulla
+                    </button>
+                    <button onclick="ProduzioneModule.saveProduzione()"
+                        class="flex-1 bg-green-700 text-white py-2.5 rounded-lg font-semibold hover:bg-green-800">
+                        ✓ Registra
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+     MODAL: TRACCIABILITÀ
+══════════════════════════════════════════ -->
+    <div id="traccia-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="bg-gray-700 text-white p-5 rounded-t-xl flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold">🔍 Tracciabilità</h3>
+                    <p class="text-sm opacity-70">Albero completo del lotto</p>
+                </div>
+                <button onclick="ProduzioneModule.closeModalTracciabilita()"
+                    class="text-white/70 hover:text-white text-2xl leading-none">×</button>
+            </div>
+            <div class="p-5" id="traccia-content"></div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+     MODAL: RICERCA LOTTO
+══════════════════════════════════════════ -->
+    <div id="lotto-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="bg-blue-700 text-white p-5 rounded-t-xl flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold">🔍 Ricerca Lotto</h3>
+                    <p class="text-sm opacity-70">Tracciabilità completa per numero di lotto</p>
+                </div>
+                <button onclick="ProduzioneModule.chiudiRicercaLotto()"
+                    class="text-white/70 hover:text-white text-2xl leading-none">×</button>
+            </div>
+            <div class="p-5">
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="lotto-search-input" placeholder="Es. 21-04-26, LG56, INT-FARINA-20260422…"
+                        class="flex-1 px-4 py-2 border rounded-lg font-mono">
+                    <button onclick="ProduzioneModule.cercaLotto()"
+                        class="bg-blue-700 text-white px-4 py-2 rounded-lg hover:bg-blue-800 font-semibold">
+                        Cerca
+                    </button>
+                </div>
+                <div id="lotto-result"></div>
+            </div>
+            <div class="p-4 border-t flex gap-2">
+                <button onclick="ProduzioneModule.stampaSchedaLotto()" id="btn-stampa-lotto"
+                    class="hidden bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800 font-semibold text-sm">
+                    🖨 Stampa scheda
+                </button>
+                <button onclick="ProduzioneModule.chiudiRicercaLotto()"
+                    class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 font-semibold text-sm">
+                    Chiudi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/modules/auth.js"></script>
+    <script src="js/modules/materie-prime.js"></script>
+    <script src="js/modules/ricette.js"></script>
+    <script src="js/modules/semilavorati.js"></script>
+    <script src="js/modules/produzione.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
