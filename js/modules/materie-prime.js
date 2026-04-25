@@ -76,6 +76,12 @@ const MateriePrimeModule = {
     // ==========================================
 
     addMP(dati) {
+        const nomeTrim = dati.nome.trim().toLowerCase();
+        const esiste = this.materiePrime.find(m => m.nome.trim().toLowerCase() === nomeTrim);
+        if (esiste) {
+            Utils.showToast(`⚠️ "${dati.nome.trim()}" esiste già`, 'warning');
+            return null;
+        }
         const mp = {
             id: this.newId(),
             nome: dati.nome.trim(),
@@ -396,6 +402,8 @@ const MateriePrimeModule = {
         document.getElementById('mp-form-note').value = '';
         document.getElementById('mp-modal').classList.remove('hidden');
         document.getElementById('mp-form-nome').focus();
+        document.getElementById('mp-btn-elimina')?.classList.add('hidden');
+
     },
 
     openModalEditMP(id) {
@@ -408,10 +416,18 @@ const MateriePrimeModule = {
         document.getElementById('mp-form-unita').value = mp.unita;
         document.getElementById('mp-form-note').value = mp.note;
         document.getElementById('mp-modal').classList.remove('hidden');
+        document.getElementById('mp-btn-elimina')?.classList.remove('hidden');
     },
 
     closeModalMP() {
         document.getElementById('mp-modal').classList.add('hidden');
+    },
+
+    eliminaDalModal() {
+        const id = document.getElementById('mp-form-id').value;
+        if (!id) return;
+        this.closeModalMP();
+        this.deleteMP(id);
     },
 
     saveModalMP() {
@@ -427,7 +443,8 @@ const MateriePrimeModule = {
             this.updateMP(id, { nome, fornitoreAbitual: fornitore, unita, note });
             Utils.showToast('✅ Materia prima aggiornata', 'success');
         } else {
-            this.addMP({ nome, fornitoreAbitual: fornitore, unita, note });
+            const nuova = this.addMP({ nome, fornitoreAbitual: fornitore, unita, note });
+            if (!nuova) return;
             Utils.showToast(`✅ "${nome}" aggiunta`, 'success');
         }
 
