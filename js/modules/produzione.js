@@ -349,6 +349,8 @@ const ProduzioneModule = {
                             class="text-gray-400 p-1.5 rounded-lg active:bg-gray-50 text-sm">📦</button>` : ''}
                         <button onclick="event.stopPropagation();ProduzioneModule.deleteProduzione('${p.id}')"
                             class="text-red-400 p-1.5 rounded-lg active:bg-red-50 text-sm">🗑</button>
+                        <button onclick="EtichetteModule.stampa('${p.id}')" title="Stampa etichetta"
+                        class="text-gray-400 hover:text-amber-700 p-1">🏷️</button>
                     </div>
                 </div>
 
