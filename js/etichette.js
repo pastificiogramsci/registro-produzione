@@ -1,7 +1,7 @@
 const EtichetteModule = {
 
     render() {
-        const container = document.ggetElementById('etichette-list');
+        const container = document.getElementById('etichette-list');
         if (!container) return;
 
         const produzioni = ProduzioneModule.produzioni || [];
