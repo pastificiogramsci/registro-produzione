@@ -188,6 +188,10 @@ const Storage = {
                 console.log("✅ Sync completato");
                 localStorage.setItem('lastSync', new Date().toISOString());
             }
+            // Ricarica i moduli con i dati aggiornati
+            if (typeof MateriePrimeModule !== 'undefined') MateriePrimeModule.init();
+            if (typeof RicetteModule !== 'undefined') RicetteModule.init();
+            if (typeof ProduzioneModule !== 'undefined') ProduzioneModule.init();
         } catch (error) {
             console.error("❌ Errore sync:", error);
         }
@@ -291,7 +295,16 @@ const Storage = {
                 }
             }
 
-            // 3. Cripta e prepara payload con metadata
+            // 3. Aggiorna localStorage se il merge ha portato dati nuovi
+            if (dataToSave !== data) {
+                const storageKey = Object.entries(CONFIG.DROPBOX_PATHS)
+                    .find(([, v]) => v === key)?.[0];
+                if (storageKey) {
+                    this.saveLocal(CONFIG.STORAGE_KEYS[storageKey], dataToSave);
+                }
+            }
+
+            // 3b. Cripta e prepara payload con metadata
             const encryptedData = AuthManager.encrypt(dataToSave);
             if (!encryptedData) {
                 console.error('❌ Errore crittografia');
