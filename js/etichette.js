@@ -8,33 +8,89 @@ const EtichetteModule = {
 
         if (produzioni.length === 0) {
             container.innerHTML = `<div class="text-center py-12 text-gray-400">
-                <div class="text-5xl mb-3">🏷️</div>
-                <p>Nessuna produzione disponibile.</p>
-            </div>`;
+            <div class="text-5xl mb-3">🏷️</div>
+            <p>Nessuna produzione disponibile.</p>
+        </div>`;
             return;
         }
 
         const sorted = [...produzioni].sort((a, b) => new Date(b.data) - new Date(a.data));
 
-        container.innerHTML = `
-            <div class="mb-4 flex gap-2">
-                <input type="text" id="et-search" placeholder="🔍 Cerca prodotto o lotto..."
-                    class="flex-1 px-4 py-2 border rounded-lg text-sm"
-                    oninput="EtichetteModule.filtra()">
+        // Sezioni come in produzione
+        const sezioni = [
+            { key: 'Pasta fresca ripiena', label: 'Pasta fresca ripiena', emoji: '🍝' },
+            { key: 'Gastronomia', label: 'Gastronomia', emoji: '🥘' },
+            { key: 'Sfoglia', label: 'Sfoglia', emoji: '🍃' },
+            { key: 'Semilavorato base', label: 'Semilavorati base', emoji: '🧱' },
+            { key: 'Semilavorato composto', label: 'Semilavorati composti', emoji: '🔧' },
+        ];
+
+        let html = `
+        <div class="mb-4">
+            <input type="text" id="et-search" placeholder="🔍 Cerca prodotto o lotto..."
+                class="w-full px-4 py-2 border rounded-lg text-sm"
+                oninput="EtichetteModule.filtra()">
+        </div>`;
+
+        sezioni.forEach(sez => {
+            const items = sorted.filter(p => p.categoria === sez.key || p.tipo === sez.key);
+            if (items.length === 0) return;
+            const sezId = `et-sez-${sez.key.replace(/\s+/g, '-').toLowerCase()}`;
+            html += `
+        <div class="mb-2 mt-4">
+            <button onclick="EtichetteModule.toggleSezione('${sezId}')"
+                class="w-full flex items-center justify-between px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                <span class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        ${sez.emoji} ${sez.label}
+                    </span>
+                    <span class="bg-gray-300 text-gray-600 rounded-full px-2 py-0.5 text-xs font-medium">
+                        ${items.length}
+                    </span>
+                </span>
+                <span id="${sezId}-icon" class="text-gray-400 text-sm">▼</span>
+            </button>
+            <div id="${sezId}" class="mt-1 card-grid">
+                ${items.map(p => this.renderCard(p)).join('')}
             </div>
-            <div id="et-lista" class="card-grid">
-                ${sorted.map(p => this.renderCard(p)).join('')}
-            </div>`;
+        </div>`;
+        });
+
+        container.innerHTML = html;
+    },
+
+    toggleSezione(id) {
+        const el = document.getElementById(id);
+        const icon = document.getElementById(`${id}-icon`);
+        if (!el) return;
+        const isOpen = el.style.display !== 'none';
+        el.style.display = isOpen ? 'none' : '';
+        if (icon) icon.textContent = isOpen ? '▶' : '▼';
     },
 
     filtra() {
         const q = document.getElementById('et-search')?.value?.toLowerCase() || '';
+        if (!q) { this.render(); return; }
         const produzioni = ProduzioneModule.produzioni || [];
         const filtered = produzioni
-            .filter(p => (p.nome || p.ricettaNome || '').toLowerCase().includes(q) || p.lotto?.toLowerCase().includes(q))
+            .filter(p =>
+                (p.nome || p.ricettaNome || '').toLowerCase().includes(q) ||
+                (p.lotto || '').toLowerCase().includes(q)
+            )
             .sort((a, b) => new Date(b.data) - new Date(a.data));
-        const lista = document.getElementById('et-lista');
-        if (lista) lista.innerHTML = filtered.map(p => this.renderCard(p)).join('');
+        const container = document.getElementById('etichette-list');
+        if (!container) return;
+        container.innerHTML = `
+        <div class="mb-4">
+            <input type="text" id="et-search" placeholder="🔍 Cerca prodotto o lotto..."
+                class="w-full px-4 py-2 border rounded-lg text-sm"
+                oninput="EtichetteModule.filtra()">
+        </div>
+        <div class="card-grid">
+            ${filtered.map(p => this.renderCard(p)).join('')}
+        </div>`;
+        document.getElementById('et-search').value = q;
+        document.getElementById('et-search').focus();
     },
 
     renderCard(p) {
