@@ -175,14 +175,21 @@ const MateriePrimeModule = {
 
     deleteCarico(id) {
         if (!confirm('Eliminare questo carico dallo storico?')) return;
+        const mpId = this.carichi.find(c => c.id === id)?.mpId;
         this.carichi = this.carichi.filter(c => c.id !== id);
         this.save();
         this.render();
+        // Aggiorna il modal lotti se è aperto
+        if (mpId && !document.getElementById('lotti-modal').classList.contains('hidden')) {
+            this.renderModalLotti(mpId);
+        }
     },
 
     openModalEditCarico(id) {
         const c = this.carichi.find(c => c.id === id);
         if (!c) return;
+        // Chiudi prima il modal lotti
+        this.closeModalLotti();
         document.getElementById('car-form-mpId').value = c.mpId;
         document.getElementById('car-modal-mp').textContent = c.mpNome;
         document.getElementById('car-form-fornitore').value = c.fornitore || '';
@@ -191,8 +198,8 @@ const MateriePrimeModule = {
         document.getElementById('car-form-scadenza').value = c.scadenza || '';
         document.getElementById('car-form-note').value = c.note || '';
         document.getElementById('car-form-foto').value = c.foto || '';
-        // Salva l'id del carico in modifica
         document.getElementById('car-modal').dataset.editId = id;
+        document.getElementById('car-modal').dataset.mpId = c.mpId;
         document.getElementById('car-modal').classList.remove('hidden');
     },
 
@@ -529,8 +536,12 @@ const MateriePrimeModule = {
         }
 
         this.save();
+        const mpIdRiapri = document.getElementById('car-modal').dataset.mpId;
+        delete document.getElementById('car-modal').dataset.editId;
+        delete document.getElementById('car-modal').dataset.mpId;
         this.closeModalCarico();
         this.render();
+        if (mpIdRiapri) this.openModalLotti(mpIdRiapri);
         // Riapri il modal lotti se era aperto
         const mpId2 = document.getElementById('lotti-modal-mpId')?.value;
         if (mpId2 && !document.getElementById('lotti-modal').classList.contains('hidden')) {
