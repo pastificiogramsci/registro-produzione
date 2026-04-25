@@ -180,6 +180,22 @@ const MateriePrimeModule = {
         this.render();
     },
 
+    openModalEditCarico(id) {
+        const c = this.carichi.find(c => c.id === id);
+        if (!c) return;
+        document.getElementById('car-form-mpId').value = c.mpId;
+        document.getElementById('car-modal-mp').textContent = c.mpNome;
+        document.getElementById('car-form-fornitore').value = c.fornitore || '';
+        document.getElementById('car-form-lotto').value = c.lottoInterno ? '' : c.lotto;
+        document.getElementById('car-form-data').value = c.dataArrivo || '';
+        document.getElementById('car-form-scadenza').value = c.scadenza || '';
+        document.getElementById('car-form-note').value = c.note || '';
+        document.getElementById('car-form-foto').value = c.foto || '';
+        // Salva l'id del carico in modifica
+        document.getElementById('car-modal').dataset.editId = id;
+        document.getElementById('car-modal').classList.remove('hidden');
+    },
+
     // Restituisce i lotti attivi di una MP, ordinati FIFO (più vecchio prima)
     getLottiAttivi(mpId) {
         const oggi = new Date();
@@ -476,6 +492,7 @@ const MateriePrimeModule = {
     },
 
     saveModalCarico() {
+        const editId = document.getElementById('car-modal').dataset.editId;
         const mpId = document.getElementById('car-form-mpId').value;
         const fornitore = document.getElementById('car-form-fornitore').value.trim();
         const lotto = document.getElementById('car-form-lotto').value.trim();
@@ -486,16 +503,39 @@ const MateriePrimeModule = {
 
         if (!data) { Utils.showToast('⚠️ La data di arrivo è obbligatoria', 'warning'); return; }
 
-        const carico = this.addCarico({ mpId, fornitore, lotto, dataArrivo: data, scadenza, note, foto });
-
-        if (!lotto) {
-            Utils.showToast(`✅ Carico registrato · Lotto interno: ${carico.lotto}`, 'success');
+        if (editId) {
+            // Modifica carico esistente
+            const c = this.carichi.find(c => c.id === editId);
+            if (c) {
+                c.fornitore = fornitore;
+                c.lotto = lotto || this.genLottoInterno(c.mpNome);
+                c.lottoInterno = !lotto;
+                c.dataArrivo = data;
+                c.scadenza = scadenza;
+                c.note = note;
+                c.foto = foto;
+                c.updatedAt = new Date().toISOString();
+            }
+            delete document.getElementById('car-modal').dataset.editId;
+            Utils.showToast('✅ Carico aggiornato', 'success');
         } else {
-            Utils.showToast(`✅ Carico registrato · Lotto: ${carico.lotto}`, 'success');
+            // Nuovo carico
+            const carico = this.addCarico({ mpId, fornitore, lotto, dataArrivo: data, scadenza, note, foto });
+            if (!lotto) {
+                Utils.showToast(`✅ Carico registrato · Lotto interno: ${carico.lotto}`, 'success');
+            } else {
+                Utils.showToast(`✅ Carico registrato · Lotto: ${carico.lotto}`, 'success');
+            }
         }
 
+        this.save();
         this.closeModalCarico();
         this.render();
+        // Riapri il modal lotti se era aperto
+        const mpId2 = document.getElementById('lotti-modal-mpId')?.value;
+        if (mpId2 && !document.getElementById('lotti-modal').classList.contains('hidden')) {
+            this.renderModalLotti(mpId2);
+        }
     },
 
     // ==========================================
@@ -591,6 +631,10 @@ const MateriePrimeModule = {
                         class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300">
                         Archivia
                     </button>` : ''}
+                    <button onclick="MateriePrimeModule.openModalEditCarico('${c.id}')"
+                        class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200">
+                        ✏️ Modifica
+                    </button>
                     <button onclick="MateriePrimeModule.deleteCarico('${c.id}')"
                         class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">
                         Elimina
