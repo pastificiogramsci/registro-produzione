@@ -281,13 +281,13 @@ const ProduzioneModule = {
             const btn = document.getElementById(`btn-range-${r}`);
             if (!btn) return;
             if (r === range) {
-                btn.className = 'flex-1 py-2 bg-amber-800 text-white font-semibold';
+                btn.className = 'flex-1 py-2 px-4 bg-amber-800 text-white font-semibold';
             } else {
                 btn.className = r === 'oggi'
-                    ? 'flex-1 py-2 bg-white hover:bg-gray-50 text-gray-600 border-r border-gray-300'
+                    ? 'flex-1 py-2 px-4 bg-white hover:bg-gray-50 text-gray-600 border-r border-gray-300'
                     : r === 'tutto'
-                        ? 'flex-1 py-2 bg-white hover:bg-gray-50 text-gray-600 border-l border-gray-300'
-                        : 'flex-1 py-2 bg-white hover:bg-gray-50 text-gray-600';
+                        ? 'flex-1 py-2 px-4 bg-white hover:bg-gray-50 text-gray-600 border-l border-gray-300'
+                        : 'flex-1 py-2 px-4 bg-white hover:bg-gray-50 text-gray-600';
             }
         });
         this.renderLista();
