@@ -276,18 +276,14 @@
             <div id="ricette-list"></div>
         </div>
 
-        <!-- ══════════════════════════════════════════
-        TAB: PRODUZIONE (unificato)
-        ══════════════════════════════════════════ -->
+        <!-- TAB: PRODUZIONE -->
         <div id="produzione-content" class="tab-content hidden">
-
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h2 class="text-lg font-bold text-gray-800">🍳 Produzione</h2>
                     <p class="text-xs text-gray-400">Semilavorati e prodotti finiti</p>
                 </div>
             </div>
-
             <div class="space-y-2 mb-4">
                 <div class="flex flex-wrap gap-2">
                     <button onclick="ProduzioneModule.openModalNew()"
@@ -295,26 +291,16 @@
                         + Nuova
                     </button>
                     <button onclick="ProduzioneModule.stampaRegistro()"
-                        class="bg-gray-700 text-white px-3 py-2.5 rounded-lg hover:bg-gray-800 text-sm">
-                        🖨
-                    </button>
+                        class="bg-gray-700 text-white px-3 py-2.5 rounded-lg hover:bg-gray-800 text-sm">🖨</button>
                     <button onclick="ProduzioneModule.apriRicercaLotto()"
-                        class="bg-blue-700 text-white px-3 py-2.5 rounded-lg hover:bg-blue-800 text-sm">
-                        🔍
-                    </button>
+                        class="bg-blue-700 text-white px-3 py-2.5 rounded-lg hover:bg-blue-800 text-sm">🔍</button>
                     <div class="flex rounded-lg border border-gray-300 overflow-hidden text-sm">
                         <button onclick="ProduzioneModule.setFiltroRange('oggi')" id="btn-range-oggi"
-                            class="flex-1 py-2 px-4 bg-white hover:bg-gray-50 text-gray-600 border-r border-gray-300">
-                            Oggi
-                        </button>
+                            class="flex-1 py-2 px-4 bg-white hover:bg-gray-50 text-gray-600 border-r border-gray-300">Oggi</button>
                         <button onclick="ProduzioneModule.setFiltroRange('settimana')" id="btn-range-settimana"
-                            class="flex-1 py-2 px-4 bg-amber-800 text-white font-semibold">
-                            Settimana
-                        </button>
+                            class="flex-1 py-2 px-4 bg-amber-800 text-white font-semibold">Settimana</button>
                         <button onclick="ProduzioneModule.setFiltroRange('tutto')" id="btn-range-tutto"
-                            class="flex-1 py-2 px-4 bg-white hover:bg-gray-50 text-gray-600 border-l border-gray-300">
-                            Tutto
-                        </button>
+                            class="flex-1 py-2 px-4 bg-white hover:bg-gray-50 text-gray-600 border-l border-gray-300">Tutto</button>
                     </div>
                     <input type="text" id="prd-search" placeholder="🔍 Cerca prodotto o lotto..."
                         class="flex-1 min-w-48 px-4 py-2 border rounded-lg text-sm"
@@ -325,66 +311,60 @@
                         class="text-gray-400 hover:text-gray-600 px-1">✕</button>
                 </div>
             </div>
-
             <div id="produzione-list"></div>
+        </div>
 
-            <!-- ══════════════════════════════════════════
-            TAB: IMPOSTAZIONI
-             ══════════════════════════════════════════ -->
-            <div id="settings-content" class="tab-content hidden">
-                <div class="bg-gradient-to-r from-gray-600 to-gray-700 text-white p-5 rounded-xl mb-5">
-                    <h2 class="text-2xl font-bold">⚙️ Impostazioni</h2>
-                </div>
-
-                <div class="bg-white rounded-xl shadow p-5 mb-4">
-                    <h3 class="text-lg font-bold mb-3">📦 Sincronizzazione Dropbox</h3>
-                    <div id="dropbox-status" class="mb-3 text-gray-500 text-sm">Caricamento...</div>
-                    <div id="dropbox-actions"></div>
-                </div>
-
-                <div class="bg-white rounded-xl shadow p-5 mb-4">
-                    <h3 class="text-lg font-bold mb-3">💾 Backup</h3>
-                    <div class="flex flex-col sm:flex-row gap-3">
-                        <button onclick="app.exportData()"
-                            class="flex-1 bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 font-medium">
-                            📤 Esporta JSON
-                        </button>
-                        <button onclick="app.importData()"
-                            class="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 font-medium">
-                            📥 Importa JSON
-                        </button>
-                    </div>
-                    <input type="file" id="import-file-input" accept=".json" class="hidden">
-                </div>
-
-                <div class="bg-white rounded-xl shadow p-5 mb-4">
-                    <h3 class="text-lg font-bold mb-3">🔐 Sicurezza</h3>
-                    <button onclick="app.changePassword()"
-                        class="bg-amber-800 text-white px-4 py-2 rounded-lg hover:bg-amber-900">
-                        🔑 Modifica Password
-                    </button>
-                </div>
-
-                <div class="bg-white rounded-xl shadow p-5 border-2 border-red-200">
-                    <h3 class="text-lg font-bold mb-2 text-red-600">⚠️ Zona Pericolosa</h3>
-                    <button onclick="app.resetAllData()"
-                        class="w-full bg-red-600 text-white px-4 py-2.5 rounded-lg hover:bg-red-700 font-medium">
-                        💣 Cancella TUTTI i dati
-                    </button>
-                    <p class="text-xs text-red-500 mt-2">Azione irreversibile</p>
+        <!-- TAB: ETICHETTE -->
+        <div id="etichette-content" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">🏷️ Etichette</h2>
+                    <p class="text-xs text-gray-400">Stampa etichette per i tuoi prodotti</p>
                 </div>
             </div>
+            <div id="etichette-list"></div>
+        </div>
 
-            <!-- TAB: ETICHETTE -->
-            <div id="etichette-content" class="tab-content hidden">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-gray-800">🏷️ Etichette</h2>
-                        <p class="text-xs text-gray-400">Stampa etichette per i tuoi prodotti</p>
-                    </div>
-                </div>
-                <div id="etichette-list"></div>
+        <!-- TAB: IMPOSTAZIONI -->
+        <div id="settings-content" class="tab-content hidden">
+            <div class="bg-gradient-to-r from-gray-600 to-gray-700 text-white p-5 rounded-xl mb-5">
+                <h2 class="text-2xl font-bold">⚙️ Impostazioni</h2>
             </div>
+            <div class="bg-white rounded-xl shadow p-5 mb-4">
+                <h3 class="text-lg font-bold mb-3">📦 Sincronizzazione Dropbox</h3>
+                <div id="dropbox-status" class="mb-3 text-gray-500 text-sm">Caricamento...</div>
+                <div id="dropbox-actions"></div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-5 mb-4">
+                <h3 class="text-lg font-bold mb-3">💾 Backup</h3>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button onclick="app.exportData()"
+                        class="flex-1 bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 font-medium">
+                        📤 Esporta JSON
+                    </button>
+                    <button onclick="app.importData()"
+                        class="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 font-medium">
+                        📥 Importa JSON
+                    </button>
+                </div>
+                <input type="file" id="import-file-input" accept=".json" class="hidden">
+            </div>
+            <div class="bg-white rounded-xl shadow p-5 mb-4">
+                <h3 class="text-lg font-bold mb-3">🔐 Sicurezza</h3>
+                <button onclick="app.changePassword()"
+                    class="bg-amber-800 text-white px-4 py-2 rounded-lg hover:bg-amber-900">
+                    🔑 Modifica Password
+                </button>
+            </div>
+            <div class="bg-white rounded-xl shadow p-5 border-2 border-red-200">
+                <h3 class="text-lg font-bold mb-2 text-red-600">⚠️ Zona Pericolosa</h3>
+                <button onclick="app.resetAllData()"
+                    class="w-full bg-red-600 text-white px-4 py-2.5 rounded-lg hover:bg-red-700 font-medium">
+                    💣 Cancella TUTTI i dati
+                </button>
+                <p class="text-xs text-red-500 mt-2">Azione irreversibile</p>
+            </div>
+        </div>
 
     </main>
 
