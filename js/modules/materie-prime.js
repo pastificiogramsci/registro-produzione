@@ -65,10 +65,10 @@ const MateriePrimeModule = {
     },
 
     // Genera riferimento interno lotto per fornitori senza lotto
-    genLottoInterno(mpNome) {
-        const oggi = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    genLottoInterno(mpNome, data) {
+        const d = (data || new Date().toISOString().split('T')[0]).replace(/-/g, '');
         const sigla = mpNome.replace(/[^a-zA-Z]/g, '').toUpperCase().substr(0, 6);
-        return `INT-${sigla}-${oggi}`;
+        return `INT-${sigla}-${d}`;
     },
 
     // ==========================================
@@ -141,7 +141,7 @@ const MateriePrimeModule = {
         // Se il fornitore non ha lotto, genera riferimento interno
         const lotto = dati.lotto?.trim()
             ? dati.lotto.trim()
-            : this.genLottoInterno(mp.nome);
+            : this.genLottoInterno(mp.nome, dati.dataArrivo);
 
         const carico = {
             id: this.newId(),
