@@ -114,9 +114,11 @@ const ProduzioneModule = {
     addProduzione(dati) {
         const lotto = this.genLotto(dati.data);
         const tipo = this.getTipo(dati.ricettaId);
+        const ricetta = RicetteModule.getRicetta(dati.ricettaId);
         const prod = {
             id: this.newId(),
             tipo: tipo,
+            categoria: ricetta?.categoria || '',
             ricettaId: dati.ricettaId,
             ricettaNome: dati.ricettaNome,
             lotto: lotto,

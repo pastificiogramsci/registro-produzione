@@ -33,7 +33,12 @@ const EtichetteModule = {
         </div>`;
 
         sezioni.forEach(sez => {
-            const items = sorted.filter(p => p.categoria === sez.key || p.tipo === sez.key);
+            const items = sorted.filter(p => {
+                if (p.categoria) return p.categoria === sez.key;
+                // Fallback per produzioni vecchie: cerca la categoria dalla ricetta
+                const ricetta = RicetteModule.getAllRicette().find(r => r.id === p.ricettaId);
+                return ricetta?.categoria === sez.key;
+            });
             if (items.length === 0) return;
             const sezId = `et-sez-${sez.key.replace(/\s+/g, '-').toLowerCase()}`;
             html += `
