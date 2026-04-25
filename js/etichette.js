@@ -31,7 +31,7 @@ const EtichetteModule = {
         const q = document.getElementById('et-search')?.value?.toLowerCase() || '';
         const produzioni = ProduzioneModule.produzioni || [];
         const filtered = produzioni
-            .filter(p => p.nome?.toLowerCase().includes(q) || p.lotto?.toLowerCase().includes(q))
+            .filter(p => (p.nome || p.ricettaNome || '').toLowerCase().includes(q) || p.lotto?.toLowerCase().includes(q))
             .sort((a, b) => new Date(b.data) - new Date(a.data));
         const lista = document.getElementById('et-lista');
         if (lista) lista.innerHTML = filtered.map(p => this.renderCard(p)).join('');
@@ -41,7 +41,7 @@ const EtichetteModule = {
         const data = p.data ? new Date(p.data).toLocaleDateString('it-IT') : '';
         return `
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-2 md:mb-0">
-                <div class="font-bold text-gray-800 truncate">${p.nome}</div>
+                <div class="font-bold text-gray-800 truncate">${p.nome || p.ricettaNome || '—'}</div>
                 <div class="text-xs text-gray-500 mt-1">Lotto: <span class="font-mono font-bold">${p.lotto || '—'}</span></div>
                 <div class="text-xs text-gray-400">${data}</div>
                 ${p.quantita ? `<div class="text-xs text-gray-400">${p.quantita} ${p.unita || ''}</div>` : ''}
@@ -90,7 +90,7 @@ const EtichetteModule = {
 </style>
 </head><body>
   <div class="shop">🍝 Pastificio Gramsci — Collegno (TO)</div>
-  <div class="nome">${prod.nome}</div>
+  <div class="nome">${prod.nome || prod.ricettaNome || '—'}</div>
   <div class="lotto">Lotto: <strong>${prod.lotto || prod.id?.substring(0, 10)}</strong></div>
   <div class="data">Prodotto il: ${data}</div>
   <div class="sep"></div>

@@ -43,8 +43,8 @@ const App = {
         if (content) content.classList.remove('hidden');
         const btn = document.querySelector(`[data-tab="${tabName}"]`);
         if (btn) btn.classList.add('active');
-        if(tabName === 'settings') this.updateDropboxUI();
-        if (tabName === 'etichette') EtichetteModule.render();
+        if (tabName === 'settings') this.updateDropboxUI();
+        if (tabName === 'etichette') setTimeout(() => EtichetteModule.render(), 300);
     },
 
     handleLogin(event) {
