@@ -57,7 +57,7 @@ const EtichetteModule = {
         const ricette = RicetteModule.getAllRicette ? RicetteModule.getAllRicette() : [];
         const ricetta = ricette.find(r => r.id === p.ricettaId);
         if (!ricetta || !ricetta.ingredienti) return '';
-        return ricetta.ingredienti.map(i => i.nome).join(', ');
+        return ricetta.ingredienti.map(i => i.refNome).join(', ');
     },
 
     stampa(prodId) {
