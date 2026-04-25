@@ -232,10 +232,19 @@ const MateriePrimeModule = {
         const oggi = new Date();
         oggi.setHours(0, 0, 0, 0);
         const attivi = this.getLottiAttivi(mpId);
-        // Metti prima i non scaduti, poi eventualmente quelli scaduti
         const validi = attivi.filter(l => !l.scadenza || new Date(l.scadenza) >= oggi);
         const scaduti = attivi.filter(l => l.scadenza && new Date(l.scadenza) < oggi);
-        return [...validi, ...scaduti].slice(0, 2);
+
+        // Includi anche gli archiviati recenti (ultimi 30 giorni)
+        const trentaGiorni = new Date();
+        trentaGiorni.setDate(trentaGiorni.getDate() - 30);
+        const archivatiRecenti = this.carichi.filter(c =>
+            c.mpId === mpId &&
+            c.archiviato &&
+            new Date(c.archiviatoAt || c.dataArrivo) >= trentaGiorni
+        );
+
+        return [...validi, ...scaduti, ...archivatiRecenti].slice(0, 5);
     },
 
     // ==========================================
