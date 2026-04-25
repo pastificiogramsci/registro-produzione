@@ -507,6 +507,10 @@ const ProduzioneModule = {
             document.getElementById('prd-form-scadenza').value =
                 this.calcolaScadenza(data, shelfLife);
         }
+        // AGGIUNGI:
+        if (data) {
+            document.getElementById('prd-form-lotto').value = this.genLotto(data);
+        }
     },
 
     renderLottiMP(ricetta) {
