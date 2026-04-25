@@ -53,11 +53,14 @@ const EtichetteModule = {
     },
 
     getIngredienti(p) {
-        if (!p.ricettaId || typeof RicetteModule === 'undefined') return '';
+        if (!p.ricettaId) return '';
         const ricette = RicetteModule.getAllRicette ? RicetteModule.getAllRicette() : [];
         const ricetta = ricette.find(r => r.id === p.ricettaId);
-        if (!ricetta || !ricetta.ingredienti) return '';
-        return ricetta.ingredienti.map(i => i.refNome).join(', ');
+        if (!ricetta || !ricetta.ingredienti || ricetta.ingredienti.length === 0) return '';
+        return ricetta.ingredienti
+            .map(i => i.refNome || i.nome || i.refId || '')
+            .filter(Boolean)
+            .join(', ');
     },
 
     stampa(prodId) {
