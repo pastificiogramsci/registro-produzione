@@ -855,7 +855,8 @@ const ProduzioneModule = {
                 operatore: prod.operatore,
                 note: `Aggiunto automaticamente per ${prod.ricettaNome}`,
                 lottiMP: [],
-                lottiSML: []
+                lottiSML: [],
+                _autoCreato: true
             });
         });
 
@@ -886,6 +887,7 @@ const ProduzioneModule = {
                 prodSML.archiviato = true;
                 prodSML.archiviatoAt = new Date().toISOString();
                 prodSML.rimanente = 0;
+                delete prodSML._autoCreato;
             } else {
                 if (rimInput?.value !== '') {
                     prodSML.rimanente = parseFloat(rimInput.value);
