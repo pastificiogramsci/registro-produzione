@@ -441,6 +441,9 @@ const MateriePrimeModule = {
                         <span class="font-medium text-amber-800">🏷 FIFO: ${prossimo.lotto}</span>
                         <span class="text-amber-600 ml-2">· arr. ${this.fmtData(prossimo.dataArrivo)}</span>
                         ${prossimo.scadenza ? `<span class="text-amber-600"> · scad. ${this.fmtData(prossimo.scadenza)}</span>` : ''}
+                        ${prossimo.quantitaRimanente !== undefined && prossimo.quantita > 0
+                            ? `<span class="text-amber-800 font-semibold ml-2">· ${prossimo.quantitaRimanente} ${prossimo.quantitaUnita || m.unita}</span>`
+                            : ''}
                         ${scadAvviso}
                     </div>` : `
                     <div class="mt-2 text-sm text-red-500 font-medium">⚠️ Nessun lotto disponibile</div>`}
