@@ -602,15 +602,18 @@ const ProduzioneModule = {
                 const ricettaSml = RicetteModule.getRicetta(ing.refId);
                 const isSfoglia = ricettaSml?.categoria === 'Sfoglia';
 
+                const isBase = ricettaSub?.categoria === 'Semilavorato base';
                 if (!isSfoglia) {
                     const attiviSml = this.getAttiviPerRicetta(ing.refId);
                     if (attiviSml.length === 0) {
                         problemi.push({
-                            tipo: 'sml_mancante',
-                            nome: ing.refNome,
+                            tipo: isBase ? 'sml_bloccante' : 'sml_mancante',
+                            nome: `${ing.refNome} (per ${nomeParent})`,
                             refId: ing.refId,
                             ricettaId: ing.refId,
-                            msg: `Nessuna produzione attiva — verrà creato automaticamente`
+                            msg: isBase
+                                ? `⛔ Deve essere prodotto prima`
+                                : `Nessuna produzione attiva — verrà creato automaticamente`
                         });
                     }
                 }
@@ -635,15 +638,19 @@ const ProduzioneModule = {
         problemi.forEach(p => {
             const actionBtn = p.tipo === 'mp_no_lotti' || p.tipo === 'mp_scorta'
                 ? `<button onclick="ProduzioneModule.chiudiDisponibilita();MateriePrimeModule.openModalCarico('${p.refId}')"
-                class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200 mt-1">
-                + Aggiungi carico
-               </button>`
-                : `<span class="text-xs text-blue-500 mt-1 block">
-                ✅ Verrà creato automaticamente con lotti FIFO
-               </span>`;
-
+                    class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200 mt-1">
+                    + Aggiungi carico
+                    </button>`
+                : p.tipo === 'sml_bloccante'
+                    ? `<button onclick="ProduzioneModule.chiudiDisponibilita();ProduzioneModule.openModalNewPerSml('${p.ricettaId}')"
+                        class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 mt-1">
+                        + Registra produzione prima
+                        </button>`
+                    : `<span class="text-xs text-blue-500 mt-1 block">
+                            ✅ Verrà creato automaticamente con lotti FIFO
+                        </span>`;
             html += `
-        <div class="border rounded-lg p-3 ${p.tipo === 'sml_mancante' ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}">
+        <div class="border rounded-lg p-3 ${p.tipo === 'sml_mancante' ? 'bg-blue-50 border-blue-200' : p.tipo === 'sml_bloccante' ? 'bg-red-50 border-red-300' : 'bg-red-50 border-red-200'}
             <div class="font-semibold text-gray-800 text-sm">${p.nome}</div>
             <div class="text-xs text-gray-500 mt-0.5">${p.msg}</div>
             ${actionBtn}
@@ -1102,6 +1109,29 @@ const ProduzioneModule = {
 
         if (!prod.lottiSML) prod.lottiSML = [];
 
+        // Prima controlla se ci sono SML bloccanti per OGNI SML necessario
+        const tuttiBloccanti = [];
+        smlNecessari.forEach(ing => {
+            const checkbox = document.getElementById(`sml-add-${ing.refId}`);
+            if (!checkbox?.checked) return;
+            const ricettaSml = RicetteModule.getRicetta(ing.refId);
+            if (!ricettaSml) return;
+
+            const problemiSml = [];
+            this.controllaSml(ricettaSml, ing.refNome, problemiSml, new Set([ing.refId]));
+            const bloccanti = problemiSml.filter(p => p.tipo === 'sml_bloccante');
+            tuttiBloccanti.push(...bloccanti);
+        });
+
+        // Se ci sono bloccanti, mostra avviso e NON procedere
+        if (tuttiBloccanti.length > 0) {
+            document.getElementById('sml-mancanti-modal')?.remove();
+            const msg = tuttiBloccanti.map(b => b.nome.split(' (per')[0]).join(', ');
+            Utils.showToast(`⛔ Produci prima: ${msg}`, 'warning');
+            return;
+        }
+
+        // Se tutto ok, procedi con la creazione
         smlNecessari.forEach(ing => {
             const checkbox = document.getElementById(`sml-add-${ing.refId}`);
             const qtaInput = document.getElementById(`sml-qta-${ing.refId}`);
@@ -1109,21 +1139,6 @@ const ProduzioneModule = {
 
             const ricettaSml = RicetteModule.getRicetta(ing.refId);
             if (!ricettaSml) return;
-
-            // Controlla se ci sono SML bloccanti mancanti
-            const problemiSml = [];
-            this.controllaSml(ricettaSml, ing.refNome, problemiSml, new Set([ing.refId]));
-            const bloccanti = problemiSml.filter(p => p.tipo === 'sml_mancante');
-
-            if (bloccanti.length > 0) {
-                bloccanti.forEach(b => {
-                    Utils.showToast(
-                        `⚠️ Per creare ${ing.refNome} serve prima: ${b.nome.split(' (per')[0]}`,
-                        'warning'
-                    );
-                });
-                return; // salta questo SML
-            }
 
             // Seleziona automaticamente lotti MP FIFO
             const lottiMPAuto = [];
