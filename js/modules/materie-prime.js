@@ -414,47 +414,48 @@ const MateriePrimeModule = {
                 : 'text-green-600';
 
         return `
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-2 md:mb-0">
-        <div class="flex items-start justify-between gap-3">
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <h3 class="font-bold text-gray-800 text-lg">${m.nome}</h3>
-                    <span class="text-xs border rounded-full px-2 py-0.5 font-medium ${badgeColor}">
-                        ${nAttivi} lott${nAttivi === 1 ? 'o' : 'i'} attiv${nAttivi === 1 ? 'o' : 'i'}
-                    </span>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-2 md:mb-0">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="font-bold text-gray-800 text-lg">${m.nome}</h3>
+                        <span class="text-xs border rounded-full px-2 py-0.5 font-medium ${badgeColor}">
+                            ${nAttivi} lott${nAttivi === 1 ? 'o' : 'i'} attiv${nAttivi === 1 ? 'o' : 'i'}
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-500 mt-0.5">
+                        ${m.fornitoreAbitual ? `📦 ${m.fornitoreAbitual} &nbsp;·&nbsp;` : ''}
+                        ${m.unita}
+                        &nbsp;·&nbsp;
+                        <span class="font-semibold ${giacenzaColor}">📦 ${giacenzaLabel}</span>
+                    </div>
+                    ${prossimo ? `
+                    <div class="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-sm">
+                        <span class="font-medium text-amber-800">🏷 FIFO: ${prossimo.lotto}</span>
+                        <span class="text-amber-600 ml-2">· arr. ${this.fmtData(prossimo.dataArrivo)}</span>
+                        ${prossimo.scadenza ? `<span class="text-amber-600"> · scad. ${this.fmtData(prossimo.scadenza)}</span>` : ''}
+                        ${scadAvviso}
+                    </div>` : `
+                    <div class="mt-2 text-sm text-red-500 font-medium">⚠️ Nessun lotto disponibile</div>`}
                 </div>
-                <div class="text-sm text-gray-500 mt-0.5">
-                    ${m.fornitoreAbitual ? `📦 ${m.fornitoreAbitual} &nbsp;·&nbsp;` : ''}
-                    ${m.unita}
-                    &nbsp;·&nbsp;
-                    <span class="font-semibold ${giacenzaColor}">📦 ${giacenzaLabel}</span>
+                <div class="flex flex-col gap-1.5 flex-shrink-0">
+                    <button onclick="MateriePrimeModule.openModalCarico('${m.id}')"
+                        class="bg-amber-700 text-white text-xs px-2.5 py-1.5 rounded-lg hover:bg-amber-800 font-medium whitespace-nowrap">
+                        + Carico
+                    </button>
+                    <button onclick="MateriePrimeModule.openModalLotti('${m.id}')"
+                        class="bg-gray-100 text-gray-700 text-xs px-2.5 py-1.5 rounded-lg hover:bg-gray-200 font-medium whitespace-nowrap">
+                        📋 Lotti
+                    </button>
+                    <button onclick="MateriePrimeModule.openModalEditMP('${m.id}')"
+                        class="bg-gray-100 text-gray-700 text-xs px-2.5 py-1.5 rounded-lg hover:bg-gray-200 font-medium whitespace-nowrap">
+                        ✏️ Modifica
+                    </button>
                 </div>
-                ${prossimo ? `
-                <div class="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-sm">
-                    <span class="font-medium text-amber-800">🏷 FIFO: ${prossimo.lotto}</span>
-                    <span class="text-amber-600 ml-2">· arr. ${this.fmtData(prossimo.dataArrivo)}</span>
-                    ${prossimo.scadenza ? `<span class="text-amber-600"> · scad. ${this.fmtData(prossimo.scadenza)}</span>` : ''}
-                    ${scadAvviso}
-                </div>` : `
-                <div class="mt-2 text-sm text-red-500 font-medium">⚠️ Nessun lotto disponibile</div>`}
             </div>
-            <div class="flex flex-col gap-1.5 flex-shrink-0">
-                <button onclick="MateriePrimeModule.openModalCarico('${m.id}')"
-                    class="bg-amber-700 text-white text-xs px-2.5 py-1.5 rounded-lg hover:bg-amber-800 font-medium whitespace-nowrap">
-                    + Carico
-                </button>
-                <button onclick="MateriePrimeModule.openModalLotti('${m.id}')"
-                    class="bg-gray-100 text-gray-700 text-xs px-2.5 py-1.5 rounded-lg hover:bg-gray-200 font-medium whitespace-nowrap">
-                    📋 Lotti
-                </button>
-                <button onclick="MateriePrimeModule.openModalEditMP('${m.id}')"
-                    class="bg-gray-100 text-gray-700 text-xs px-2.5 py-1.5 rounded-lg hover:bg-gray-200 font-medium whitespace-nowrap">
-                    ✏️ Modifica
-                </button>
-            </div>
-        </div>
-    </div>`;
+        </div>`;
     },
+
     // ==========================================
     // HELPERS UI
     // ==========================================
