@@ -303,15 +303,17 @@ const ProduzioneModule = {
     },
 
     renderRow(p) {
-        const scadAvv = p.scadenza ? this.avvisoScadenza(p.scadenza) : '';
+        const scadAvv = p.scadenza && !p.congelato ? this.avvisoScadenza(p.scadenza) : '';
 
-        const lottoColor = p.tipo === 'prodotto'
-            ? 'bg-green-100 text-green-800'
-            : p.tipo === 'composto'
-                ? 'bg-purple-100 text-purple-800'
-                : p.tipo === 'sfoglia'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-orange-100 text-orange-800';
+        const lottoColor = p.congelato
+            ? 'bg-blue-100 text-blue-800'
+            : p.tipo === 'prodotto'
+                ? 'bg-green-100 text-green-800'
+                : p.tipo === 'composto'
+                    ? 'bg-purple-100 text-purple-800'
+                    : p.tipo === 'sfoglia'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-orange-100 text-orange-800';
 
         const lottiStr = [
             ...(p.lottiMP || []).map(l => `${l.mpNome}: <span class="font-mono">${l.lotto}</span>`),
@@ -321,11 +323,19 @@ const ProduzioneModule = {
         const hasIngredients = (p.lottiMP?.length > 0) || (p.lottiSML?.length > 0) || (p.lottiUsati?.length > 0);
         const rowId = `row-detail-${p.id}`;
 
+        // Nota scongelo
+        const notaScongelo = p.congelato
+            ? `<div class="text-xs text-blue-500 mt-0.5">
+            ℹ️ Dopo scongelo: <strong>2gg</strong> se non trasformato · <strong>4gg</strong> se cotto
+           </div>`
+            : '';
+
         return `
-        <div class="bg-white border border-gray-200 rounded-lg mb-2 overflow-hidden
+        <div class="border rounded-lg mb-2 overflow-hidden
+                    ${p.congelato ? 'border-blue-300 bg-blue-50' : 'bg-white border-gray-200'}
                     ${p.archiviato ? 'opacity-40' : ''}">
             <div class="px-3 py-2.5 ${hasIngredients ? 'cursor-pointer active:bg-gray-50' : ''}"
-                 ${hasIngredients ? `onclick="ProduzioneModule.toggleDettaglio('${rowId}')"` : ''}>
+                ${hasIngredients ? `onclick="ProduzioneModule.toggleDettaglio('${rowId}')"` : ''}>
 
                 <!-- Prima riga: nome + lotto + azioni -->
                 <div class="flex items-start gap-2 min-w-0">
@@ -335,7 +345,10 @@ const ProduzioneModule = {
                             <span class="font-mono text-xs px-2 py-0.5 rounded font-bold whitespace-nowrap ${lottoColor}">
                                 ${p.lotto}
                             </span>
-                            ${p.scadenza ? `<span class="text-xs text-gray-400">scad. ${this.fmtData(p.scadenza)}</span>` : ''}
+                            ${p.congelato ? `<span class="text-xs bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded font-medium">❄️ congelato</span>` : ''}
+                            ${p.dataAbbattimento ? `<span class="text-xs text-blue-500">· abbatt. ${this.fmtData(p.dataAbbattimento)}</span>` : ''}
+                            ${p.lottoOrigineNum ? `<span class="text-xs text-gray-400">· da ${p.lottoOrigineNum}</span>` : ''}
+                            ${!p.congelato && p.scadenza ? `<span class="text-xs text-gray-400">scad. ${this.fmtData(p.scadenza)}</span>` : ''}
                             ${scadAvv}
                         </div>
                     </div>
@@ -359,16 +372,15 @@ const ProduzioneModule = {
                     </div>
                 </div>
 
-                    ${p.quantita ? `<div class="text-xs text-gray-400 mt-0.5">
+                ${p.quantita ? `<div class="text-xs text-gray-400 mt-0.5">
                     ${p.quantita} ${p.unita}
                     ${p.rimanente !== undefined && p.rimanente !== p.quantita
-                                    ? `· <span class="text-orange-600 font-medium">rimasti: ${p.rimanente} ${p.unita}</span>`
-                                    : ''}
+                        ? `· <span class="text-orange-600 font-medium">rimasti: ${p.rimanente} ${p.unita}</span>`
+                        : ''}
                 </div>` : ''}
-                ${p.dataAbbattimento ? `<div class="text-xs text-blue-500 mt-0.5">❄️ Abbattuto il ${this.fmtData(p.dataAbbattimento)}</div>` : ''}
-                ${p.lottoOrigineNum ? `<div class="text-xs text-gray-400 mt-0.5">↳ Origine: lotto ${p.lottoOrigineNum}</div>` : ''}
+                ${notaScongelo}
 
-                <!-- Terza riga: lotti usati (troncata) -->
+                <!-- Lotti usati -->
                 ${lottiStr ? `<div class="text-xs text-gray-300 mt-0.5 truncate">${lottiStr}</div>` : ''}
             </div>
 
