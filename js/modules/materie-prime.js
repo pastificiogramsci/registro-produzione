@@ -285,6 +285,8 @@ const MateriePrimeModule = {
 
     getGiacenza(mpId) {
         return this.getLottiAttivi(mpId).reduce((tot, l) => {
+            // Se non ha quantità registrata, non conteggiare (dato sconosciuto)
+            if (l.quantita === undefined || l.quantita === null || l.quantita === 0) return tot;
             return tot + (l.quantitaRimanente ?? l.quantita ?? 0);
         }, 0);
     },
@@ -404,14 +406,20 @@ const MateriePrimeModule = {
             : '';
 
         const giacenza = this.getGiacenza(m.id);
-        const giacenzaLabel = giacenza > 0
-            ? `${giacenza} ${m.unita}`
-            : 'Scorta esaurita';
-        const giacenzaColor = giacenza <= 0
-            ? 'text-red-600'
-            : giacenza < 2
-                ? 'text-orange-500'
-                : 'text-green-600';
+        const lottiConQuantita = attivi.filter(l => l.quantita > 0);
+        const giacenzaKnown = lottiConQuantita.length > 0;
+        const giacenzaLabel = !giacenzaKnown
+            ? null
+            : giacenza > 0
+                ? `${giacenza} ${m.unita}`
+                : 'Scorta esaurita';
+        const giacenzaColor = !giacenzaKnown
+            ? ''
+            : giacenza <= 0
+                ? 'text-red-600'
+                : giacenza < 2
+                    ? 'text-orange-500'
+                    : 'text-green-600';
 
         return `
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-2 md:mb-0">
@@ -426,8 +434,7 @@ const MateriePrimeModule = {
                     <div class="text-sm text-gray-500 mt-0.5">
                         ${m.fornitoreAbitual ? `📦 ${m.fornitoreAbitual} &nbsp;·&nbsp;` : ''}
                         ${m.unita}
-                        &nbsp;·&nbsp;
-                        <span class="font-semibold ${giacenzaColor}">📦 ${giacenzaLabel}</span>
+                        ${giacenzaLabel ? `&nbsp;·&nbsp;<span class="font-semibold ${giacenzaColor}">📦 ${giacenzaLabel}</span>` : ''}
                     </div>
                     ${prossimo ? `
                     <div class="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-sm">
