@@ -449,7 +449,6 @@ const ProduzioneModule = {
         const sel = document.getElementById('prd-form-ricetta');
         sel.innerHTML = '<option value="">— Seleziona ricetta —</option>';
 
-        // Tutte le ricette in ordine logico
         const ordine = ['Sfoglia', 'Semilavorato base', 'Semilavorato composto', 'Pasta fresca ripiena', 'Gastronomia'];
         const tutte = RicetteModule.getAllRicette();
 
@@ -469,7 +468,7 @@ const ProduzioneModule = {
             sel.appendChild(optgroup);
         });
 
-        const oggi = new Date().toISOString().split('T')[0];
+        const oggi = new Date().toLocaleDateString('en-CA');
         document.getElementById('prd-form-data').value = oggi;
         document.getElementById('prd-form-scadenza').value = '';
         document.getElementById('prd-form-quantita').value = '';
@@ -479,6 +478,7 @@ const ProduzioneModule = {
         document.getElementById('prd-form-id').value = '';
         document.getElementById('prd-lotti-mp').innerHTML = '';
         document.getElementById('prd-lotti-sml').innerHTML = '';
+        document.getElementById('prd-form-congelato').checked = false;
         document.querySelector('#prd-modal h3').textContent = '🍳 Nuova Produzione';
         document.getElementById('prd-modal').classList.remove('hidden');
     },
@@ -514,9 +514,9 @@ const ProduzioneModule = {
             document.getElementById('prd-form-scadenza').value =
                 this.calcolaScadenza(data, shelfLife);
         }
-        // AGGIUNGI:
         if (data) {
-            document.getElementById('prd-form-lotto').value = this.genLotto(data);
+            const lottoEl = document.getElementById('prd-form-lotto');
+            if (lottoEl) lottoEl.value = this.genLotto(data);
         }
     },
 
@@ -534,19 +534,19 @@ const ProduzioneModule = {
                 ? '<option value="">Nessun lotto disponibile</option>'
                 : lotti.map((l, i) =>
                     `<option value="${l.id}|${l.lotto}" ${i === 0 ? 'selected' : ''}>
-                                ${l.lotto} · arr. ${this.fmtData(l.dataArrivo)} ${i === 0 ? '— FIFO' : ''}
-                             </option>`
+                        ${l.lotto} · arr. ${this.fmtData(l.dataArrivo)} ${i === 0 ? '— FIFO' : ''}
+                     </option>`
                 ).join('') + '<option value="manuale">✏️ Inserisci manualmente</option>';
             return `
-                    <div class="mb-2" data-mp-id="${ing.refId}" data-mp-nome="${ing.refNome}">
-                        <label class="block text-xs text-gray-600 mb-1 font-medium">${ing.refNome}</label>
-                        <select class="prd-lotto-mp-sel w-full px-3 py-2 border rounded-lg text-sm bg-white"
-                            onchange="ProduzioneModule.onLottoMPChange(this)">
-                            ${opzioni}
-                        </select>
-                        <input type="text" class="prd-lotto-mp-manual hidden w-full px-3 py-2 border rounded-lg text-sm mt-1"
-                            placeholder="Inserisci lotto manualmente">
-                    </div>`;
+                <div class="mb-2" data-mp-id="${ing.refId}" data-mp-nome="${ing.refNome}">
+                    <label class="block text-xs text-gray-600 mb-1 font-medium">${ing.refNome}</label>
+                    <select class="prd-lotto-mp-sel w-full px-3 py-2 border rounded-lg text-sm bg-white"
+                        onchange="ProduzioneModule.onLottoMPChange(this)">
+                        ${opzioni}
+                    </select>
+                    <input type="text" class="prd-lotto-mp-manual hidden w-full px-3 py-2 border rounded-lg text-sm mt-1"
+                        placeholder="Inserisci lotto manualmente">
+                </div>`;
         }).join('')}
             </div>`;
     },
@@ -565,21 +565,21 @@ const ProduzioneModule = {
                 ? '<option value="">Nessun lotto disponibile</option>'
                 : attivi.map((s, i) =>
                     `<option value="${s.id}|${s.lotto}" ${i === 0 ? 'selected' : ''}>
-                                ${s.lotto} · prod. ${this.fmtData(s.data)}
-                                ${s.scadenza ? ` · scad. ${this.fmtData(s.scadenza)}` : ''}
-                                ${i === 0 ? '— FIFO' : ''}
-                             </option>`
+                        ${s.lotto} · prod. ${this.fmtData(s.data)}
+                        ${s.scadenza ? ` · scad. ${this.fmtData(s.scadenza)}` : ''}
+                        ${i === 0 ? '— FIFO' : ''}
+                     </option>`
                 ).join('') + '<option value="manuale">✏️ Inserisci manualmente</option>';
             return `
-                    <div class="mb-2" data-sml-id="${ing.refId}" data-sml-nome="${ing.refNome}">
-                        <label class="block text-xs text-gray-600 mb-1 font-medium">${ing.refNome}</label>
-                        <select class="prd-lotto-sml-sel w-full px-3 py-2 border rounded-lg text-sm bg-white"
-                            onchange="ProduzioneModule.onLottoSMLChange(this)">
-                            ${opzioni}
-                        </select>
-                        <input type="text" class="prd-lotto-sml-manual hidden w-full px-3 py-2 border rounded-lg text-sm mt-1"
-                            placeholder="Inserisci lotto manualmente">
-                    </div>`;
+                <div class="mb-2" data-sml-id="${ing.refId}" data-sml-nome="${ing.refNome}">
+                    <label class="block text-xs text-gray-600 mb-1 font-medium">${ing.refNome}</label>
+                    <select class="prd-lotto-sml-sel w-full px-3 py-2 border rounded-lg text-sm bg-white"
+                        onchange="ProduzioneModule.onLottoSMLChange(this)">
+                        ${opzioni}
+                    </select>
+                    <input type="text" class="prd-lotto-sml-manual hidden w-full px-3 py-2 border rounded-lg text-sm mt-1"
+                        placeholder="Inserisci lotto manualmente">
+                </div>`;
         }).join('')}
             </div>`;
     },
@@ -606,6 +606,7 @@ const ProduzioneModule = {
         const unita = document.getElementById('prd-form-unita').value;
         const operatore = document.getElementById('prd-form-operatore').value;
         const note = document.getElementById('prd-form-note').value;
+        const congelato = document.getElementById('prd-form-congelato')?.checked || false;
 
         if (!ricettaId) { Utils.showToast('⚠️ Seleziona una ricetta', 'warning'); return; }
         if (!data) { Utils.showToast('⚠️ La data è obbligatoria', 'warning'); return; }
@@ -648,40 +649,38 @@ const ProduzioneModule = {
                 p.ricettaId = ricettaId;
                 p.ricettaNome = ricettaNome;
                 p.tipo = this.getTipo(ricettaId);
+                p.categoria = RicetteModule.getRicetta(ricettaId)?.categoria || '';
                 p.data = data;
                 p.scadenza = scadenza;
                 p.quantita = parseFloat(quantita) || 0;
                 p.unita = unita;
                 p.operatore = operatore;
                 p.note = note;
+                p.congelato = congelato;
                 p.lottiMP = lottiMP;
                 p.lottiSML = lottiSML;
                 p.updatedAt = new Date().toISOString();
                 this.save();
                 Utils.showToast(`✅ Produzione aggiornata`, 'success');
             }
-
+            this.closeModal();
+            this.render();
         } else {
             const prod = this.addProduzione({
                 ricettaId, ricettaNome, data, scadenza,
-                quantita, unita, operatore, note, lottiMP, lottiSML
+                quantita, unita, operatore, note, lottiMP, lottiSML, congelato
             });
             Utils.showToast(`✅ ${ricettaNome} · Lotto: ${prod.lotto}`, 'success');
             this.closeModal();
             this.render();
-            this.mostraPopupConsumo(prod);
-            return;
+            this.verificaSemilavoratiNecessari(prod);
         }
-
-        this.closeModal();
-        this.render();
     },
 
     mostraPopupConsumo(prod) {
         const smlUsati = prod.lottiSML || [];
         if (smlUsati.length === 0) return;
 
-        // Costruisci il contenuto del popup
         let html = `
         <div class="modal-overlay" id="consumo-modal">
             <div class="modal-box">
@@ -697,7 +696,7 @@ const ProduzioneModule = {
             html += `
             <div class="border rounded-lg p-3 bg-orange-50">
                 <div class="flex items-center gap-2 mb-2">
-                    <input type="checkbox" id="consumo-${sml.smlRefId}" 
+                    <input type="checkbox" id="consumo-${sml.smlRefId}"
                         class="w-4 h-4" value="${sml.smlRefId}">
                     <label for="consumo-${sml.smlRefId}" class="font-semibold text-gray-800">
                         ${sml.smlNome} · <span class="font-mono text-orange-700">${sml.lotto}</span>
@@ -706,7 +705,7 @@ const ProduzioneModule = {
                 <div class="ml-6">
                     <label class="text-xs text-gray-500">Quantità rimanente (opz.)</label>
                     <div class="flex gap-2 mt-1">
-                        <input type="number" id="rim-${sml.smlRefId}" 
+                        <input type="number" id="rim-${sml.smlRefId}"
                             step="0.1" min="0"
                             placeholder="${rimanente || 'es. 2'}"
                             class="w-32 px-3 py-1.5 border rounded-lg text-sm">
@@ -736,6 +735,137 @@ const ProduzioneModule = {
         document.body.insertAdjacentHTML('beforeend', html);
     },
 
+    verificaSemilavoratiNecessari(prod) {
+        const ricetta = RicetteModule.getRicetta(prod.ricettaId);
+        if (!ricetta || !ricetta.ingredienti) {
+            this.mostraPopupConsumo(prod);
+            return;
+        }
+
+        const smlNecessari = ricetta.ingredienti.filter(i => i.tipo === 'sml');
+        if (smlNecessari.length === 0) {
+            this.mostraPopupConsumo(prod);
+            return;
+        }
+
+        const mancanti = [];
+
+        smlNecessari.forEach(ing => {
+            const esiste = this.produzioni.find(p =>
+                p.ricettaId === ing.refId && !p.archiviato
+            );
+            if (!esiste) {
+                let qtaSuggerita = ing.quantita || 0;
+                if (ricetta.resa && prod.quantita && ing.quantita) {
+                    qtaSuggerita = (prod.quantita * ing.quantita) / ricetta.resa;
+                    qtaSuggerita = Math.round(qtaSuggerita * 10) / 10;
+                }
+                mancanti.push({ ...ing, qtaSuggerita });
+            }
+        });
+
+        if (mancanti.length === 0) {
+            this.mostraPopupConsumo(prod);
+            return;
+        }
+
+        let html = `
+        <div class="modal-overlay" id="sml-mancanti-modal" data-prod-id="${prod.id}">
+            <div class="modal-box">
+                <div class="bg-blue-700 text-white p-5 rounded-t-xl">
+                    <h3 class="text-xl font-bold">⚠️ Semilavorati non registrati</h3>
+                    <p class="text-sm opacity-80">Per produrre ${prod.ricettaNome} servono questi semilavorati</p>
+                </div>
+                <div class="p-5 space-y-3">`;
+
+        mancanti.forEach(sml => {
+            html += `
+            <div class="border rounded-lg p-3 bg-blue-50">
+                <div class="flex items-center gap-2 mb-2">
+                    <input type="checkbox" id="sml-add-${sml.refId}"
+                        class="w-4 h-4" checked>
+                    <label for="sml-add-${sml.refId}" class="font-semibold text-gray-800">
+                        ${sml.refNome}
+                    </label>
+                </div>
+                <div class="ml-6 flex gap-2 items-center">
+                    <input type="number" id="sml-qta-${sml.refId}"
+                        value="${sml.qtaSuggerita || ''}"
+                        step="0.1" min="0"
+                        placeholder="Quantità"
+                        class="w-28 px-3 py-1.5 border rounded-lg text-sm">
+                    <span class="text-sm text-gray-400">${sml.unita || 'kg'}</span>
+                    ${sml.qtaSuggerita ? `<span class="text-xs text-blue-500">(suggerito)</span>` : ''}
+                </div>
+            </div>`;
+        });
+
+        html += `
+                <div class="flex gap-3 pt-2">
+                    <button onclick="ProduzioneModule.chiudiSmlMancanti()"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                        Salta
+                    </button>
+                    <button onclick="ProduzioneModule.aggiungiSmlMancanti('${prod.id}')"
+                        class="flex-1 bg-blue-700 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-800">
+                        ✓ Aggiungi
+                    </button>
+                </div>
+                </div>
+            </div>
+        </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    chiudiSmlMancanti() {
+        const modal = document.getElementById('sml-mancanti-modal');
+        const prodId = modal?.dataset.prodId;
+        modal?.remove();
+        if (prodId) {
+            const prod = this.getProduzione(prodId);
+            if (prod) this.mostraPopupConsumo(prod);
+        }
+    },
+
+    aggiungiSmlMancanti(prodId) {
+        const prod = this.getProduzione(prodId);
+        if (!prod) return;
+
+        const ricetta = RicetteModule.getRicetta(prod.ricettaId);
+        const smlNecessari = ricetta?.ingredienti?.filter(i => i.tipo === 'sml') || [];
+
+        smlNecessari.forEach(ing => {
+            const checkbox = document.getElementById(`sml-add-${ing.refId}`);
+            const qtaInput = document.getElementById(`sml-qta-${ing.refId}`);
+            if (!checkbox?.checked) return;
+
+            const ricettaSml = RicetteModule.getRicetta(ing.refId);
+            if (!ricettaSml) return;
+
+            this.addProduzione({
+                ricettaId: ing.refId,
+                ricettaNome: ing.refNome,
+                data: prod.data,
+                scadenza: ricettaSml.shelfLife
+                    ? this.calcolaScadenza(prod.data, ricettaSml.shelfLife)
+                    : '',
+                quantita: parseFloat(qtaInput?.value) || 0,
+                unita: ing.unita || 'kg',
+                operatore: prod.operatore,
+                note: `Aggiunto automaticamente per ${prod.ricettaNome}`,
+                lottiMP: [],
+                lottiSML: []
+            });
+        });
+
+        this.save();
+        this.render();
+        document.getElementById('sml-mancanti-modal')?.remove();
+        this.mostraPopupConsumo(prod);
+        Utils.showToast('✅ Semilavorati aggiunti', 'success');
+    },
+
     chiudiConsumo() {
         document.getElementById('consumo-modal')?.remove();
     },
@@ -750,20 +880,16 @@ const ProduzioneModule = {
             const checkbox = document.getElementById(`consumo-${sml.smlRefId}`);
             const rimInput = document.getElementById(`rim-${sml.smlRefId}`);
             const prodSML = this.produzioni.find(p => p.id === sml.smlRefId);
-
             if (!prodSML) return;
 
             if (checkbox?.checked) {
-                // Esaurito → archivia
                 prodSML.archiviato = true;
                 prodSML.archiviatoAt = new Date().toISOString();
                 prodSML.rimanente = 0;
             } else {
-                // Non esaurito → aggiorna solo la quantità rimanente
                 if (rimInput?.value !== '') {
                     prodSML.rimanente = parseFloat(rimInput.value);
                 }
-                // NON archiviare
             }
         });
 
@@ -779,7 +905,6 @@ const ProduzioneModule = {
 
         this.openModalNew();
 
-        // Seleziona la ricetta giusta
         const sel = document.getElementById('prd-form-ricetta');
         for (let opt of sel.options) {
             if (opt.value === p.ricettaId) { opt.selected = true; break; }
@@ -791,6 +916,7 @@ const ProduzioneModule = {
         document.getElementById('prd-form-unita').value = p.unita || 'kg';
         document.getElementById('prd-form-operatore').value = p.operatore || '';
         document.getElementById('prd-form-note').value = p.note || '';
+        document.getElementById('prd-form-congelato').checked = p.congelato || false;
         document.getElementById('prd-form-id').value = id;
         document.querySelector('#prd-modal h3').textContent = '✏️ Modifica Produzione';
 
