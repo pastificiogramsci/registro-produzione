@@ -871,21 +871,18 @@ const ProduzioneModule = {
     },
 
     stampaRegistro() {
-        const filtroRange = document.getElementById('prd-filtro-range')?.value || 'settimana';
+        const filtroRange = this._filtroRange || 'settimana';
         const filtroData = document.getElementById('prd-filtro-data')?.value;
 
         const oggi = new Date();
         oggi.setHours(0, 0, 0, 0);
 
-        const tuttoRange = !filtroData && filtroRange === 'tutto';
-        let lista = tuttoRange
-            ? [...this.produzioni]
-            : [...this.produzioni].filter(p => !p.archiviato);
+        let lista = [...this.produzioni];
 
         if (filtroData) {
             lista = lista.filter(p => p.data === filtroData);
         } else if (filtroRange === 'oggi') {
-            const oggiStr = oggi.toISOString().split('T')[0];
+            const oggiStr = new Date().toLocaleDateString('en-CA');
             lista = lista.filter(p => p.data === oggiStr);
         } else if (filtroRange === 'settimana') {
             const settimanaFa = new Date();
@@ -901,14 +898,21 @@ const ProduzioneModule = {
         const periodoLabel = filtroData
             ? `Data: ${this.fmtData(filtroData)}`
             : filtroRange === 'oggi'
-                ? `Data: ${this.fmtData(oggi.toISOString().split('T')[0])}`
-                : 'Periodo: ultimi 7 giorni';
+                ? `Data: ${this.fmtData(new Date().toLocaleDateString('en-CA'))}`
+                : filtroRange === 'tutto'
+                    ? 'Periodo: tutto lo storico'
+                    : 'Periodo: ultimi 7 giorni';
 
-        // Separa semilavorati vendibili da prodotti finiti
-        const semilavorati = lista.filter(p => {
-            return p.tipo === 'base' || p.tipo === 'composto' || p.tipo === 'sfoglia';
-        });
-        const finiti = lista.filter(p => p.tipo === 'prodotto');
+        const includiArchiviati = !filtroData && filtroRange === 'tutto';
+
+        const semilavorati = lista.filter(p =>
+            (p.tipo === 'base' || p.tipo === 'composto' || p.tipo === 'sfoglia')
+            && (includiArchiviati || !p.archiviato)
+        );
+        const finiti = lista.filter(p =>
+            p.tipo === 'prodotto' &&
+            (includiArchiviati || !p.archiviato)
+        );
 
         const buildAlbero = (prod, livello = 0) => {
             let html = '';
@@ -955,6 +959,7 @@ const ProduzioneModule = {
                     <td style="padding:10px 8px;vertical-align:top">
                         <div style="font-weight:700;font-size:14px">${p.ricettaNome}</div>
                         <div style="font-size:11px;color:${colore};margin-top:2px;font-weight:600">${tipoLabel}</div>
+                        ${p.archiviato ? `<div style="font-size:10px;color:#9ca3af;margin-top:1px">archiviato</div>` : ''}
                     </td>
                     <td style="padding:10px 8px;vertical-align:top;font-family:monospace;font-weight:700;font-size:13px">${p.lotto}</td>
                     <td style="padding:10px 8px;vertical-align:top;font-size:13px">${this.fmtData(p.data)}</td>
@@ -974,9 +979,12 @@ const ProduzioneModule = {
             ${righe}`;
         };
 
+        const titoloSml = includiArchiviati ? '🧱 Semilavorati (tutto lo storico)' : '🧱 Semilavorati disponibili';
+        const titoloFiniti = includiArchiviati ? '🍝 Prodotti finiti (tutto lo storico)' : '🍝 Prodotti finiti';
+
         const righe =
-            renderSezione('🧱 Semilavorati', '#065f46', semilavorati) +
-            renderSezione('🍝 Prodotti finiti', '#1e3a5f', finiti);
+            renderSezione(titoloSml, '#065f46', semilavorati) +
+            renderSezione(titoloFiniti, '#1e3a5f', finiti);
 
         const html = `
         <!DOCTYPE html>
