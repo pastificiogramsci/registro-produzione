@@ -5,12 +5,12 @@
 const CONFIG = {
 
     // Dropbox
-    DROPBOX_APP_KEY: "jxj7rn2nzrs3y0p",
+    DROPBOX_APP_KEY: "7bf3akruqbuttif",
 
     getDropboxConfig() {
         return {
             clientId: this.DROPBOX_APP_KEY,
-            clientSecret: atob('OWNhMnoxZjl5NDc3cnJu'),
+            clientSecret: atob('NXpsdzJ3dXFzeGQ1ZGdl'),
             redirectUri: this.getRedirectUri()
         };
     },
