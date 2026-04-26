@@ -934,18 +934,35 @@ const ProduzioneModule = {
             const ricettaSml = RicetteModule.getRicetta(ing.refId);
             if (!ricettaSml) return;
 
-            // Seleziona automaticamente lotti MP FIFO per questo semilavorato
+            // Seleziona automaticamente lotti MP FIFO
             const lottiMPAuto = [];
             if (ricettaSml.ingredienti) {
                 ricettaSml.ingredienti.filter(i => i.tipo === 'mp').forEach(mpIng => {
                     const lottiDisponibili = MateriePrimeModule.getLottiPerProduzione(mpIng.refId);
                     if (lottiDisponibili.length > 0) {
-                        const lottoPriority = lottiDisponibili[0]; // FIFO
+                        const lottoPriority = lottiDisponibili[0];
                         lottiMPAuto.push({
                             mpId: mpIng.refId,
                             mpNome: mpIng.refNome,
                             lottoId: lottoPriority.id,
                             lotto: lottoPriority.lotto
+                        });
+                    }
+                });
+            }
+
+            // Seleziona automaticamente lotti SML FIFO
+            const lottiSMLAuto = [];
+            if (ricettaSml.ingredienti) {
+                ricettaSml.ingredienti.filter(i => i.tipo === 'sml').forEach(smlIng => {
+                    const attiviSml = this.getAttiviPerRicetta(smlIng.refId);
+                    if (attiviSml.length > 0) {
+                        const smlPriority = attiviSml[0];
+                        lottiSMLAuto.push({
+                            smlId: smlIng.refId,
+                            smlNome: smlIng.refNome,
+                            smlRefId: smlPriority.id,
+                            lotto: smlPriority.lotto
                         });
                     }
                 });
@@ -963,7 +980,7 @@ const ProduzioneModule = {
                 operatore: prod.operatore,
                 note: `Aggiunto automaticamente per ${prod.ricettaNome}`,
                 lottiMP: lottiMPAuto,
-                lottiSML: [],
+                lottiSML: lottiSMLAuto,
                 _autoCreato: true
             });
 
@@ -975,7 +992,6 @@ const ProduzioneModule = {
                 lotto: nuovaProd.lotto
             });
 
-            // Archivia automaticamente il SML appena creato
             nuovaProd.archiviato = true;
             nuovaProd.archiviatoAt = new Date().toISOString();
             delete nuovaProd._autoCreato;
@@ -984,7 +1000,6 @@ const ProduzioneModule = {
         this.save();
         this.render();
         document.getElementById('sml-mancanti-modal')?.remove();
-        // NON mostrare popup consumo — i SML sono già archiviati
         Utils.showToast('✅ Semilavorati aggiunti e registrati', 'success');
     },
 
