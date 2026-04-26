@@ -861,20 +861,25 @@ const ProduzioneModule = {
                 _autoCreato: true
             });
 
-            // Linka il semilavorato alla produzione principale
+            // Linka e archivia subito
             prod.lottiSML.push({
                 smlId: ing.refId,
                 smlNome: ing.refNome,
                 smlRefId: nuovaProd.id,
                 lotto: nuovaProd.lotto
             });
+
+            // Archivia automaticamente il SML appena creato
+            nuovaProd.archiviato = true;
+            nuovaProd.archiviatoAt = new Date().toISOString();
+            delete nuovaProd._autoCreato;
         });
 
         this.save();
         this.render();
         document.getElementById('sml-mancanti-modal')?.remove();
-        this.mostraPopupConsumo(prod);
-        Utils.showToast('✅ Semilavorati aggiunti', 'success');
+        // NON mostrare popup consumo — i SML sono già archiviati
+        Utils.showToast('✅ Semilavorati aggiunti e registrati', 'success');
     },
 
     chiudiConsumo() {
