@@ -150,6 +150,9 @@ const MateriePrimeModule = {
             fornitore: dati.fornitore?.trim() || mp.fornitoreAbitual,
             lotto: lotto,
             lottoInterno: !dati.lotto?.trim(), // true = lotto generato da noi
+            quantita: parseFloat(dati.quantita) || 0,
+            quantitaUnita: dati.quantitaUnita || mp.unita,
+            quantitaRimanente: parseFloat(dati.quantita) || 0,
             dataArrivo: dati.dataArrivo || new Date().toISOString().split('T')[0],
             scadenza: dati.scadenza?.trim() || '',
             note: dati.note?.trim() || '',
@@ -198,6 +201,9 @@ const MateriePrimeModule = {
         document.getElementById('car-form-scadenza').value = c.scadenza || '';
         document.getElementById('car-form-note').value = c.note || '';
         document.getElementById('car-form-foto').value = c.foto || '';
+        document.getElementById('car-form-congelato').checked = c.congelato || false;
+        document.getElementById('car-form-quantita').value = c.quantita || '';
+        document.getElementById('car-form-quantita-unita').value = c.quantitaUnita || 'kg';
         document.getElementById('car-modal').dataset.editId = id;
         document.getElementById('car-modal').dataset.mpId = c.mpId;
         document.getElementById('car-modal').classList.remove('hidden');
@@ -499,6 +505,9 @@ const MateriePrimeModule = {
         document.getElementById('car-form-scadenza').value = '';
         document.getElementById('car-form-note').value = '';
         document.getElementById('car-form-foto').value = '';
+        document.getElementById('car-form-congelato').checked = false;
+        document.getElementById('car-form-quantita').value = '';                    // ← AGGIUNGI
+        document.getElementById('car-form-quantita-unita').value = mp.unita || 'kg'; // ← AGGIUNGI
         document.getElementById('car-modal').classList.remove('hidden');
         document.getElementById('car-form-lotto').focus();
     },
@@ -516,6 +525,8 @@ const MateriePrimeModule = {
         const scadenza = document.getElementById('car-form-scadenza').value;
         const note = document.getElementById('car-form-note').value.trim();
         const foto = document.getElementById('car-form-foto').value.trim();
+        const quantita = document.getElementById('car-form-quantita').value;
+        const quantitaUnita = document.getElementById('car-form-quantita-unita').value;
 
         if (!data) { Utils.showToast('⚠️ La data di arrivo è obbligatoria', 'warning'); return; }
 
@@ -536,7 +547,7 @@ const MateriePrimeModule = {
             Utils.showToast('✅ Carico aggiornato', 'success');
         } else {
             // Nuovo carico
-            const carico = this.addCarico({ mpId, fornitore, lotto, dataArrivo: data, scadenza, note, foto });
+            const carico = this.addCarico({ mpId, fornitore, lotto, dataArrivo: data, scadenza, note, foto, congelato, quantita, quantitaUnita });
             if (!lotto) {
                 Utils.showToast(`✅ Carico registrato · Lotto interno: ${carico.lotto}`, 'success');
             } else {
