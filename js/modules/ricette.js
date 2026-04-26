@@ -289,6 +289,8 @@ const RicetteModule = {
         document.getElementById('ric-form-vendibile').checked = false;
         document.getElementById('ric-form-note').value = '';
         document.getElementById('ric-form-shelf').value = '';
+        document.getElementById('ric-form-resa').value = '';
+        document.getElementById('ric-form-resa-unita').value = 'kg';
         document.getElementById('ric-form-vendibile-row').classList.add('hidden');
         document.getElementById('ric-modal').classList.remove('hidden');
         document.getElementById('ric-form-nome').focus();
@@ -305,6 +307,8 @@ const RicetteModule = {
         document.getElementById('ric-form-vendibile').checked = r.vendibile;
         document.getElementById('ric-form-note').value = r.note;
         document.getElementById('ric-form-shelf').value = r.shelfLife || '';
+        document.getElementById('ric-form-resa').value = r.resa || '';
+        document.getElementById('ric-form-resa-unita').value = r.resaUnita || 'kg';
         document.getElementById('ric-form-vendibile-row').classList.toggle('hidden', !r.semilavorato);
         document.getElementById('ric-modal').classList.remove('hidden');
     },
