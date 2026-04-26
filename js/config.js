@@ -20,27 +20,27 @@ const CONFIG = {
         if (hostname === "127.0.0.1" || hostname === "localhost") {
             return "http://127.0.0.1:5500/";
         } else {
-            return "https://pastificiogramsci.github.io/gestionaleordini/";
+            return "https://pastificiogramsci.github.io/registro-produzione/";
         }
     },
 
     // Percorsi Dropbox
     DROPBOX_PATHS: {
-        MATERIE_PRIME:  "/registro/materie_prime.json",
-        CARICHI:        "/registro/carichi.json",
-        RICETTE:        "/registro/ricette.json",
-        SEMILAVORATI:   "/registro/semilavorati.json",
-        PRODUZIONE:     "/registro/produzione.json"
+        MATERIE_PRIME: "/registro/materie_prime.json",
+        CARICHI: "/registro/carichi.json",
+        RICETTE: "/registro/ricette.json",
+        SEMILAVORATI: "/registro/semilavorati.json",
+        PRODUZIONE: "/registro/produzione.json"
     },
 
     // Chiavi localStorage
     STORAGE_KEYS: {
-        MATERIE_PRIME:  "reg_materie_prime",
-        CARICHI:        "reg_carichi",
-        RICETTE:        "reg_ricette",
-        SEMILAVORATI:   "reg_semilavorati",
-        PRODUZIONE:     "reg_produzione",
-        DROPBOX_TOKEN:  "dropboxAccessToken"
+        MATERIE_PRIME: "reg_materie_prime",
+        CARICHI: "reg_carichi",
+        RICETTE: "reg_ricette",
+        SEMILAVORATI: "reg_semilavorati",
+        PRODUZIONE: "reg_produzione",
+        DROPBOX_TOKEN: "dropboxAccessToken"
     }
 };
 
