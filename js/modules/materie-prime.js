@@ -581,13 +581,13 @@ const MateriePrimeModule = {
         const scadenza = document.getElementById('car-form-scadenza').value;
         const note = document.getElementById('car-form-note').value.trim();
         const foto = document.getElementById('car-form-foto').value.trim();
+        const congelato = document.getElementById('car-form-congelato').checked;
         const quantita = document.getElementById('car-form-quantita').value;
         const quantitaUnita = document.getElementById('car-form-quantita-unita').value;
 
         if (!data) { Utils.showToast('⚠️ La data di arrivo è obbligatoria', 'warning'); return; }
 
         if (editId) {
-            // Modifica carico esistente
             const c = this.carichi.find(c => c.id === editId);
             if (c) {
                 c.fornitore = fornitore;
@@ -597,12 +597,19 @@ const MateriePrimeModule = {
                 c.scadenza = scadenza;
                 c.note = note;
                 c.foto = foto;
+                c.congelato = congelato;
+                if (quantita) {
+                    c.quantita = parseFloat(quantita);
+                    c.quantitaUnita = quantitaUnita;
+                    if (!c.quantitaRimanente || c.quantitaRimanente === c.quantita) {
+                        c.quantitaRimanente = parseFloat(quantita);
+                    }
+                }
                 c.updatedAt = new Date().toISOString();
             }
             delete document.getElementById('car-modal').dataset.editId;
             Utils.showToast('✅ Carico aggiornato', 'success');
         } else {
-            // Nuovo carico
             const carico = this.addCarico({ mpId, fornitore, lotto, dataArrivo: data, scadenza, note, foto, congelato, quantita, quantitaUnita });
             if (!lotto) {
                 Utils.showToast(`✅ Carico registrato · Lotto interno: ${carico.lotto}`, 'success');
@@ -618,7 +625,6 @@ const MateriePrimeModule = {
         this.closeModalCarico();
         this.render();
         if (mpIdRiapri) this.openModalLotti(mpIdRiapri);
-        // Riapri il modal lotti se era aperto
         const mpId2 = document.getElementById('lotti-modal-mpId')?.value;
         if (mpId2 && !document.getElementById('lotti-modal').classList.contains('hidden')) {
             this.renderModalLotti(mpId2);
