@@ -198,44 +198,52 @@ const MateriePrimeModule = {
         }
 
         const html = `
-    <div class="modal-overlay" id="dividi-modal">
-        <div class="modal-box">
-            <div class="bg-blue-700 text-white p-5 rounded-t-xl">
-                <h3 class="text-xl font-bold">✂️ Dividi lotto</h3>
-                <p class="text-sm opacity-80">${c.mpNome} · ${c.lotto}</p>
-            </div>
-            <div class="p-5 space-y-4">
-                <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
-                    Disponibile: <strong>${disponibile} ${c.quantitaUnita || 'kg'}</strong>
+        <div class="modal-overlay" id="dividi-modal">
+            <div class="modal-box">
+                <div class="bg-blue-700 text-white p-5 rounded-t-xl">
+                    <h3 class="text-xl font-bold">✂️ Dividi lotto</h3>
+                    <p class="text-sm opacity-80">${c.mpNome} · ${c.lotto}</p>
                 </div>
-                <div>
-                    <label class="block text-sm font-semibold mb-1 text-gray-700">
-                        Quantità da congelare
-                    </label>
-                    <div class="flex gap-2 items-center">
-                        <input type="number" id="dividi-qta" step="0.1" min="0.1"
-                            max="${disponibile}"
-                            placeholder="Es. 2.5"
-                            class="flex-1 px-4 py-2 border rounded-lg">
-                        <span class="text-gray-500">${c.quantitaUnita || 'kg'}</span>
+                <div class="p-5 space-y-4">
+                    <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
+                        Disponibile: <strong>${disponibile} ${c.quantitaUnita || 'kg'}</strong>
                     </div>
-                    <p class="text-xs text-gray-400 mt-1">
-                        La quantità rimanente nel lotto originale sarà ridotta automaticamente
-                    </p>
-                </div>
-                <div class="flex gap-3 pt-2">
-                    <button onclick="MateriePrimeModule.chiudiDividiLotto()"
-                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
-                        Annulla
-                    </button>
-                    <button onclick="MateriePrimeModule.confermaDividiLotto('${id}')"
-                        class="flex-1 bg-blue-700 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-800">
-                        ✂️ Dividi
-                    </button>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">
+                            Data abbattimento
+                        </label>
+                        <input type="date" id="dividi-data-abbattimento"
+                            value="${new Date().toLocaleDateString('en-CA')}"
+                            class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">
+                            Quantità da congelare
+                        </label>
+                        <div class="flex gap-2 items-center">
+                            <input type="number" id="dividi-qta" step="0.1" min="0.1"
+                                max="${disponibile}"
+                                placeholder="Es. 2.5"
+                                class="flex-1 px-4 py-2 border rounded-lg">
+                            <span class="text-gray-500">${c.quantitaUnita || 'kg'}</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">
+                            La quantità rimanente nel lotto originale sarà ridotta automaticamente
+                        </p>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button onclick="MateriePrimeModule.chiudiDividiLotto()"
+                            class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                            Annulla
+                        </button>
+                        <button onclick="MateriePrimeModule.confermaDividiLotto('${id}')"
+                            class="flex-1 bg-blue-700 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-800">
+                            ✂️ Dividi e congela
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>`;
+        </div>`;
 
         document.body.insertAdjacentHTML('beforeend', html);
     },
@@ -249,6 +257,7 @@ const MateriePrimeModule = {
         if (!c) return;
 
         const qtaCongelare = parseFloat(document.getElementById('dividi-qta').value);
+        const dataAbbattimento = document.getElementById('dividi-data-abbattimento').value;
         const disponibile = c.quantitaRimanente ?? c.quantita ?? 0;
 
         if (!qtaCongelare || qtaCongelare <= 0) {
@@ -263,7 +272,7 @@ const MateriePrimeModule = {
         // Riduce lotto originale
         c.quantitaRimanente = Math.round((disponibile - qtaCongelare) * 100) / 100;
 
-        // Crea nuovo lotto congelato
+        // Crea nuovo lotto congelato con tracciabilità
         const nuovoLotto = {
             id: this.newId(),
             mpId: c.mpId,
@@ -276,6 +285,9 @@ const MateriePrimeModule = {
             note: `Porzione congelata da lotto ${c.lotto}`,
             foto: c.foto,
             congelato: true,
+            dataAbbattimento: dataAbbattimento,
+            lottoOrigineId: c.id,
+            lottoOrigineNum: c.lotto,
             quantita: qtaCongelare,
             quantitaUnita: c.quantitaUnita,
             quantitaRimanente: qtaCongelare,
@@ -288,7 +300,6 @@ const MateriePrimeModule = {
         this.render();
         this.chiudiDividiLotto();
 
-        // Riapri il modal lotti
         const mpId = document.getElementById('lotti-modal-mpId')?.value;
         if (mpId) this.renderModalLotti(mpId);
 
@@ -815,8 +826,8 @@ const MateriePrimeModule = {
                         <span class="font-mono font-bold text-amber-800">${c.lotto}</span>
                         ${c.lottoInterno ? '<span class="text-xs bg-gray-200 text-gray-600 px-1.5 rounded">interno</span>' : ''}
                         ${c.archiviato
-                ? '<span class="text-xs bg-gray-300 text-gray-600 px-1.5 rounded">archiviato</span>'
-                : '<span class="text-xs bg-green-100 text-green-700 px-1.5 rounded font-medium">attivo</span>'}
+                        ? '<span class="text-xs bg-gray-300 text-gray-600 px-1.5 rounded">archiviato</span>'
+                        : '<span class="text-xs bg-green-100 text-green-700 px-1.5 rounded font-medium">attivo</span>'}
                     </div>
                     <div class="text-sm text-gray-600 mt-1">
                         📦 ${c.fornitore || '–'} &nbsp;·&nbsp;
@@ -825,6 +836,8 @@ const MateriePrimeModule = {
                         ${scadAvv}
                     </div>
                     ${c.note ? `<div class="text-xs text-gray-400 mt-0.5 italic">${c.note}</div>` : ''}
+                    ${c.dataAbbattimento ? `<div class="text-xs text-blue-500 mt-0.5">❄️ Abbattuto il ${this.fmtData(c.dataAbbattimento)}</div>` : ''}
+                    ${c.lottoOrigineNum ? `<div class="text-xs text-gray-400 mt-0.5">↳ Origine: lotto ${c.lottoOrigineNum}</div>` : ''}
                     ${c.foto ? `<a href="${c.foto}" target="_blank"
                         class="text-xs text-blue-500 hover:text-blue-700 mt-0.5 block">📷 Vedi foto DDT</a>` : ''}
                 </div>
@@ -838,6 +851,11 @@ const MateriePrimeModule = {
                         class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200">
                         ✏️ Modifica
                     </button>
+                    ${!c.archiviato && (c.quantitaRimanente ?? c.quantita ?? 0) > 0 ? `
+                    <button onclick="MateriePrimeModule.apriDividiLotto('${c.id}')"
+                        class="text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded hover:bg-indigo-200">
+                        ✂️ Dividi
+                    </button>` : ''}
                     <button onclick="MateriePrimeModule.deleteCarico('${c.id}')"
                         class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">
                         Elimina
