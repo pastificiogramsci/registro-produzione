@@ -905,9 +905,8 @@ const ProduzioneModule = {
                 : 'Periodo: ultimi 7 giorni';
 
         // Separa semilavorati vendibili da prodotti finiti
-        const vendibili = lista.filter(p => {
-            const r = RicetteModule.getRicetta(p.ricettaId);
-            return r?.vendibile && p.tipo !== 'prodotto';
+        const semilavorati = lista.filter(p => {
+            return p.tipo === 'base' || p.tipo === 'composto' || p.tipo === 'sfoglia';
         });
         const finiti = lista.filter(p => p.tipo === 'prodotto');
 
@@ -976,7 +975,7 @@ const ProduzioneModule = {
         };
 
         const righe =
-            renderSezione('🥘 Semilavorati vendibili', '#065f46', vendibili) +
+            renderSezione('🧱 Semilavorati', '#065f46', semilavorati) +
             renderSezione('🍝 Prodotti finiti', '#1e3a5f', finiti);
 
         const html = `
