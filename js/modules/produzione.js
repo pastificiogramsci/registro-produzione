@@ -356,7 +356,12 @@ const ProduzioneModule = {
                     </div>
                 </div>
 
-                ${p.quantita ? `<div class="text-xs text-gray-400 mt-0.5">${p.quantita} ${p.unita}</div>` : ''}
+                ${p.quantita ? `<div class="text-xs text-gray-400 mt-0.5">
+                    ${p.quantita} ${p.unita}
+                    ${p.rimanente !== undefined && p.rimanente !== p.quantita
+                        ? `· <span class="text-orange-600 font-medium">rimasti: ${p.rimanente} ${p.unita}</span>`
+                        : ''}
+                </div>` : ''}
 
                 <!-- Terza riga: lotti usati (troncata) -->
                 ${lottiStr ? `<div class="text-xs text-gray-300 mt-0.5 truncate">${lottiStr}</div>` : ''}
