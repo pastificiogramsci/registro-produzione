@@ -934,6 +934,23 @@ const ProduzioneModule = {
             const ricettaSml = RicetteModule.getRicetta(ing.refId);
             if (!ricettaSml) return;
 
+            // Seleziona automaticamente lotti MP FIFO per questo semilavorato
+            const lottiMPAuto = [];
+            if (ricettaSml.ingredienti) {
+                ricettaSml.ingredienti.filter(i => i.tipo === 'mp').forEach(mpIng => {
+                    const lottiDisponibili = MateriePrimeModule.getLottiPerProduzione(mpIng.refId);
+                    if (lottiDisponibili.length > 0) {
+                        const lottoPriority = lottiDisponibili[0]; // FIFO
+                        lottiMPAuto.push({
+                            mpId: mpIng.refId,
+                            mpNome: mpIng.refNome,
+                            lottoId: lottoPriority.id,
+                            lotto: lottoPriority.lotto
+                        });
+                    }
+                });
+            }
+
             const nuovaProd = this.addProduzione({
                 ricettaId: ing.refId,
                 ricettaNome: ing.refNome,
@@ -945,7 +962,7 @@ const ProduzioneModule = {
                 unita: ing.unita || 'kg',
                 operatore: prod.operatore,
                 note: `Aggiunto automaticamente per ${prod.ricettaNome}`,
-                lottiMP: [],
+                lottiMP: lottiMPAuto,
                 lottiSML: [],
                 _autoCreato: true
             });
