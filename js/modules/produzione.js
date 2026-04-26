@@ -665,6 +665,102 @@ const ProduzioneModule = {
 
         this.closeModal();
         this.render();
+        if (!editId) this.mostraPopupConsumo(prod);
+    },
+
+    mostraPopupConsumo(prod) {
+        const smlUsati = prod.lottiSML || [];
+        if (smlUsati.length === 0) return;
+
+        // Costruisci il contenuto del popup
+        let html = `
+        <div class="modal-overlay" id="consumo-modal">
+            <div class="modal-box">
+                <div class="bg-orange-700 text-white p-5 rounded-t-xl">
+                    <h3 class="text-xl font-bold">🥩 Semilavorati utilizzati</h3>
+                    <p class="text-sm opacity-80">Quali semilavorati sono esauriti?</p>
+                </div>
+                <div class="p-5 space-y-3">`;
+
+        smlUsati.forEach(sml => {
+            const prodSML = this.produzioni.find(p => p.id === sml.smlRefId);
+            const rimanente = prodSML?.rimanente ?? prodSML?.quantita ?? '';
+            html += `
+            <div class="border rounded-lg p-3 bg-orange-50">
+                <div class="flex items-center gap-2 mb-2">
+                    <input type="checkbox" id="consumo-${sml.smlRefId}" 
+                        class="w-4 h-4" value="${sml.smlRefId}">
+                    <label for="consumo-${sml.smlRefId}" class="font-semibold text-gray-800">
+                        ${sml.smlNome} · <span class="font-mono text-orange-700">${sml.lotto}</span>
+                    </label>
+                </div>
+                <div class="ml-6">
+                    <label class="text-xs text-gray-500">Quantità rimanente (opz.)</label>
+                    <div class="flex gap-2 mt-1">
+                        <input type="number" id="rim-${sml.smlRefId}" 
+                            step="0.1" min="0"
+                            placeholder="${rimanente || 'es. 2'}"
+                            class="w-32 px-3 py-1.5 border rounded-lg text-sm">
+                        <span class="text-sm text-gray-400 self-center">
+                            ${prodSML?.unita || 'kg'}
+                        </span>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        html += `
+                <div class="flex gap-3 pt-2">
+                    <button onclick="ProduzioneModule.chiudiConsumo()"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                        Salta
+                    </button>
+                    <button onclick="ProduzioneModule.salvaConsumo('${prod.id}')"
+                        class="flex-1 bg-orange-700 text-white py-2.5 rounded-lg font-semibold hover:bg-orange-800">
+                        ✓ Conferma
+                    </button>
+                </div>
+                </div>
+            </div>
+        </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    chiudiConsumo() {
+        document.getElementById('consumo-modal')?.remove();
+    },
+
+    salvaConsumo(prodId) {
+        const prod = this.getProduzione(prodId);
+        if (!prod) return;
+
+        const smlUsati = prod.lottiSML || [];
+
+        smlUsati.forEach(sml => {
+            const checkbox = document.getElementById(`consumo-${sml.smlRefId}`);
+            const rimInput = document.getElementById(`rim-${sml.smlRefId}`);
+            const prodSML = this.produzioni.find(p => p.id === sml.smlRefId);
+
+            if (!prodSML) return;
+
+            // Aggiorna quantità rimanente se inserita
+            if (rimInput?.value) {
+                prodSML.rimanente = parseFloat(rimInput.value);
+            }
+
+            // Archivia se spuntato
+            if (checkbox?.checked) {
+                prodSML.archiviato = true;
+                prodSML.archiviatoAt = new Date().toISOString();
+                prodSML.rimanente = 0;
+            }
+        });
+
+        this.save();
+        this.render();
+        this.chiudiConsumo();
+        Utils.showToast('✅ Consumo registrato', 'success');
     },
 
     openModalEdit(id) {
