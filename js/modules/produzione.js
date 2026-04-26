@@ -434,16 +434,26 @@ const ProduzioneModule = {
             prod.lottiSML.forEach(s => {
                 const smlDet = this.produzioni.find(x => x.lotto === s.lotto && x.id !== prod.id)
                     || this.produzioni.find(x => x.id === s.smlRefId);
+                const subId = `sub-${s.smlRefId || s.lotto.replace(/[^a-z0-9]/gi, '')}`;
+                const hasSubIngredients = smlDet && ((smlDet.lottiMP?.length > 0) || (smlDet.lottiSML?.length > 0));
+
                 html += `
-            <div style="padding-left:${indent}px" class="flex items-start gap-1.5 py-1 border-b border-gray-100 last:border-0">
-                <span class="text-gray-300 text-xs mt-0.5">↳</span>
-                <div>
-                    <span class="text-xs font-semibold text-orange-700">🥩 ${s.smlNome}</span>
-                    <span class="font-mono text-xs text-orange-600 ml-1">${s.lotto}</span>
-                    ${smlDet?.scadenza ? `<span class="text-xs text-gray-400 ml-1">scad. ${this.fmtData(smlDet.scadenza)}</span>` : ''}
-                    ${smlDet ? this.renderAlberoHTML(smlDet, livello + 1, visited) : ''}
-                </div>
-            </div>`;
+                <div style="padding-left:${indent}px" class="flex items-start gap-1.5 py-1 border-b border-gray-100 last:border-0">
+                    <span class="text-gray-300 text-xs mt-0.5">↳</span>
+                    <div class="flex-1">
+                        <div class="${hasSubIngredients ? 'cursor-pointer' : ''} flex items-center gap-1"
+                            ${hasSubIngredients ? `onclick="document.getElementById('${subId}').classList.toggle('hidden')"` : ''}>
+                            <span class="text-xs font-semibold text-orange-700">🥩 ${s.smlNome}</span>
+                            <span class="font-mono text-xs text-orange-600 ml-1">${s.lotto}</span>
+                            ${smlDet?.scadenza ? `<span class="text-xs text-gray-400 ml-1">scad. ${this.fmtData(smlDet.scadenza)}</span>` : ''}
+                            ${hasSubIngredients ? `<span class="text-xs text-gray-400">▼</span>` : ''}
+                        </div>
+                        ${smlDet && hasSubIngredients ? `
+                        <div id="${subId}" class="hidden mt-1">
+                            ${this.renderAlberoHTML(smlDet, livello + 1, visited)}
+                        </div>` : ''}
+                    </div>
+                </div>`;
             });
         }
 
