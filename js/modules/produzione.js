@@ -167,7 +167,13 @@ const ProduzioneModule = {
     getAttiviPerRicetta(ricettaId) {
         return this.produzioni
             .filter(p => p.ricettaId === ricettaId && !p.archiviato && this.isSemilavorato(p.ricettaId))
-            .sort((a, b) => new Date(a.data) - new Date(b.data));
+            .sort((a, b) => {
+                // Freschi prima dei congelati
+                if (a.congelato && !b.congelato) return 1;
+                if (!a.congelato && b.congelato) return -1;
+                // Poi FIFO per data
+                return new Date(a.data) - new Date(b.data);
+            });
     },
 
     // ==========================================
@@ -586,15 +592,15 @@ const ProduzioneModule = {
 
         container.innerHTML = `
             <div class="border rounded-lg p-3 bg-orange-50">
-                <p class="text-xs font-bold text-orange-700 uppercase mb-2">🥩 Lotti Semilavorati</p>
+            <p class="text-xs font-bold text-orange-700 uppercase mb-2">🥩 Lotti Semilavorati</p>
                 ${smlIng.map(ing => {
             const attivi = this.getAttiviPerRicetta(ing.refId);
             const opzioni = attivi.length === 0
                 ? '<option value="">Nessun lotto disponibile</option>'
                 : attivi.map((s, i) =>
                     `<option value="${s.id}|${s.lotto}" ${i === 0 ? 'selected' : ''}>
-                        ${s.lotto} · prod. ${this.fmtData(s.data)}
-                        ${s.scadenza ? ` · scad. ${this.fmtData(s.scadenza)}` : ''}
+                        ${s.congelato ? '❄️ ' : '🌿 '}${s.lotto} · ${s.congelato ? 'abbatt.' : 'prod.'} ${this.fmtData(s.congelato ? s.dataAbbattimento || s.data : s.data)}
+                        ${!s.congelato && s.scadenza ? ` · scad. ${this.fmtData(s.scadenza)}` : ''}
                         ${i === 0 ? '— FIFO' : ''}
                      </option>`
                 ).join('') + '<option value="manuale">✏️ Inserisci manualmente</option>';
@@ -956,6 +962,10 @@ const ProduzioneModule = {
                 prodSML.archiviatoAt = new Date().toISOString();
                 prodSML.rimanente = 0;
                 delete prodSML._autoCreato;
+                // Se era congelato, registra data scongelo
+                if (prodSML.congelato) {
+                    prodSML.dataScongelo = new Date().toLocaleDateString('en-CA');
+                }
             } else {
                 if (rimInput?.value !== '') {
                     prodSML.rimanente = parseFloat(rimInput.value);
