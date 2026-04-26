@@ -190,7 +190,7 @@ const ProduzioneModule = {
         if (filtroData) {
             lista = lista.filter(p => p.data === filtroData);
         } else if (filtroRange === 'oggi') {
-            const oggiStr = oggi.toISOString().split('T')[0];
+            const oggiStr = new Date().toLocaleDateString('en-CA'); // formato YYYY-MM-DD locale
             lista = lista.filter(p => p.data === oggiStr);
         } else if (filtroRange === 'settimana') {
             const settimanaFa = new Date(oggi);
@@ -782,7 +782,7 @@ const ProduzioneModule = {
             const oggiStr = oggi.toISOString().split('T')[0];
             lista = lista.filter(p => p.data === oggiStr);
         } else if (filtroRange === 'settimana') {
-            const settimanaFa = new Date(oggi);
+            const settimanaFa = new Date();
             settimanaFa.setDate(settimanaFa.getDate() - 7);
             lista = lista.filter(p => new Date(p.data) >= settimanaFa);
         }
