@@ -660,7 +660,7 @@ const ProduzioneModule = {
                 this.save();
                 Utils.showToast(`✅ Produzione aggiornata`, 'success');
             }
-        
+
         } else {
             const prod = this.addProduzione({
                 ricettaId, ricettaNome, data, scadenza,
@@ -753,16 +753,17 @@ const ProduzioneModule = {
 
             if (!prodSML) return;
 
-            // Aggiorna quantità rimanente se inserita
-            if (rimInput?.value) {
-                prodSML.rimanente = parseFloat(rimInput.value);
-            }
-
-            // Archivia se spuntato
             if (checkbox?.checked) {
+                // Esaurito → archivia
                 prodSML.archiviato = true;
                 prodSML.archiviatoAt = new Date().toISOString();
                 prodSML.rimanente = 0;
+            } else {
+                // Non esaurito → aggiorna solo la quantità rimanente
+                if (rimInput?.value !== '') {
+                    prodSML.rimanente = parseFloat(rimInput.value);
+                }
+                // NON archiviare
             }
         });
 
