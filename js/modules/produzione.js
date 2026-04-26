@@ -1110,6 +1110,21 @@ const ProduzioneModule = {
             const ricettaSml = RicetteModule.getRicetta(ing.refId);
             if (!ricettaSml) return;
 
+            // Controlla se ci sono SML bloccanti mancanti
+            const problemiSml = [];
+            this.controllaSml(ricettaSml, ing.refNome, problemiSml, new Set([ing.refId]));
+            const bloccanti = problemiSml.filter(p => p.tipo === 'sml_mancante');
+
+            if (bloccanti.length > 0) {
+                bloccanti.forEach(b => {
+                    Utils.showToast(
+                        `⚠️ Per creare ${ing.refNome} serve prima: ${b.nome.split(' (per')[0]}`,
+                        'warning'
+                    );
+                });
+                return; // salta questo SML
+            }
+
             // Seleziona automaticamente lotti MP FIFO
             const lottiMPAuto = [];
             if (ricettaSml.ingredienti) {
@@ -1140,6 +1155,11 @@ const ProduzioneModule = {
                             smlRefId: smlPriority.id,
                             lotto: smlPriority.lotto
                         });
+                    } else {
+                        Utils.showToast(
+                            `⚠️ ${smlIng.refNome} non trovato per ${ing.refNome} — aggiungilo manualmente`,
+                            'warning'
+                        );
                     }
                 });
             }
