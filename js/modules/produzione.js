@@ -939,8 +939,8 @@ const ProduzioneModule = {
                     } else if (ing.tipo === 'mp') {
                         const mpObj = MateriePrimeModule.getMP(ing.refId);
                         if (mpObj?.noTraccia) continue;
-                        const lottiAttivi = MateriePrimeModule.getLottiAttivi(ing.refId);
-                        if (lottiAttivi.length === 0) {
+                        const lottiDisponibili = MateriePrimeModule.getLottiPerProduzione(ing.refId, data);
+                        if (lottiDisponibili.length === 0) {
                             problemiBloccanti.push({
                                 tipo: 'mp_no_lotti',
                                 nome: ing.refNome,
@@ -948,6 +948,7 @@ const ProduzioneModule = {
                             });
                         }
                     }
+
                 }
             }
 
