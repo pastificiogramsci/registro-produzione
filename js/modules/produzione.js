@@ -995,23 +995,6 @@ const ProduzioneModule = {
             MateriePrimeModule.save();
             MateriePrimeModule.render();
 
-            const smlIng = ricetta?.ingredienti?.filter(i => i.tipo === 'sml') || [];
-            smlIng.forEach(ing => {
-                if (!ing.quantita || !ricetta.resa) return;
-                const qtaDaScaricare = (parseFloat(quantita) * parseFloat(ing.quantita)) / parseFloat(ricetta.resa);
-                const attiviSml = this.getAttiviPerRicetta(ing.refId);
-                if (attiviSml.length === 0) return;
-                const smlProd = attiviSml[0]; // FIFO
-                const disponibile = smlProd.rimanente ?? smlProd.quantita ?? 0;
-                const nuovoRimanente = Math.round((disponibile - qtaDaScaricare) * 100) / 100;
-                smlProd.rimanente = Math.max(0, nuovoRimanente);
-                if (nuovoRimanente <= 0) {
-                    smlProd.archiviato = true;
-                    smlProd.archiviatoAt = new Date().toISOString();
-                }
-            });
-            this.save()
-
             if (avvisi.length > 0) {
                 Utils.showToast(`⚠️ Scorte: ${avvisi[0]}`, 'warning');
             }
@@ -1305,6 +1288,27 @@ const ProduzioneModule = {
             nuovaProd.archiviatoAt = new Date().toISOString();
             delete nuovaProd._autoCreato;
         });
+
+        // Scarico automatico SML dalla ricetta principale
+        const ricettaProd = RicetteModule.getRicetta(prod.ricettaId);
+        if (ricettaProd?.resa && prod.quantita) {
+            const smlIngProd = ricettaProd.ingredienti?.filter(i => i.tipo === 'sml') || [];
+            smlIngProd.forEach(ing => {
+                if (!ing.quantita) return;
+                const qtaDaScaricare = (parseFloat(prod.quantita) * parseFloat(ing.quantita)) / parseFloat(ricettaProd.resa);
+                const lottoProd = prod.lottiSML?.find(l => l.smlId === ing.refId);
+                if (!lottoProd) return;
+                const smlProd = this.produzioni.find(p => p.id === lottoProd.smlRefId);
+                if (!smlProd) return;
+                const disponibile = smlProd.rimanente ?? smlProd.quantita ?? 0;
+                const nuovoRimanente = Math.round((disponibile - qtaDaScaricare) * 100) / 100;
+                smlProd.rimanente = Math.max(0, nuovoRimanente);
+                if (nuovoRimanente <= 0) {
+                    smlProd.archiviato = true;
+                    smlProd.archiviatoAt = new Date().toISOString();
+                }
+            });
+        }
 
         this.save();
         this.render();
