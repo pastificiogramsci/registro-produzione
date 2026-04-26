@@ -519,6 +519,7 @@ const ProduzioneModule = {
 
     closeModal() {
         document.getElementById('prd-modal').classList.add('hidden');
+        this._scongelaRef = null;
     },
 
     onRicettaChange() {
@@ -591,29 +592,36 @@ const ProduzioneModule = {
         if (smlIng.length === 0) { container.innerHTML = ''; return; }
 
         container.innerHTML = `
-            <div class="border rounded-lg p-3 bg-orange-50">
-            <p class="text-xs font-bold text-orange-700 uppercase mb-2">🥩 Lotti Semilavorati</p>
-                ${smlIng.map(ing => {
+        <div class="border rounded-lg p-3 bg-orange-50">
+        <p class="text-xs font-bold text-orange-700 uppercase mb-2">🥩 Lotti Semilavorati</p>
+            ${smlIng.map(ing => {
             const attivi = this.getAttiviPerRicetta(ing.refId);
+
+            // Pre-seleziona lotto scongelato se presente
+            const scongelaRefId = this._scongelaRef?.prodRicettaId === ing.refId
+                ? this._scongelaRef.prodId
+                : null;
+
             const opzioni = attivi.length === 0
                 ? '<option value="">Nessun lotto disponibile</option>'
                 : attivi.map((s, i) =>
-                    `<option value="${s.id}|${s.lotto}" ${i === 0 ? 'selected' : ''}>
-                        ${s.congelato ? '❄️ ' : '🌿 '}${s.lotto} · ${s.congelato ? 'abbatt.' : 'prod.'} ${this.fmtData(s.congelato ? s.dataAbbattimento || s.data : s.data)}
-                        ${!s.congelato && s.scadenza ? ` · scad. ${this.fmtData(s.scadenza)}` : ''}
-                        ${i === 0 ? '— FIFO' : ''}
-                     </option>`
+                    `<option value="${s.id}|${s.lotto}" 
+                    ${scongelaRefId ? s.id === scongelaRefId ? 'selected' : '' : i === 0 ? 'selected' : ''}>
+                    ${s.congelato ? '❄️ ' : '🌿 '}${s.lotto} · ${s.congelato ? 'abbatt.' : 'prod.'} ${this.fmtData(s.congelato ? s.dataAbbattimento || s.data : s.data)}
+                    ${!s.congelato && s.scadenza ? ` · scad. ${this.fmtData(s.scadenza)}` : ''}
+                    ${i === 0 && !scongelaRefId ? '— FIFO' : s.id === scongelaRefId ? '— SCONGELATO' : ''}
+                 </option>`
                 ).join('') + '<option value="manuale">✏️ Inserisci manualmente</option>';
             return `
-                <div class="mb-2" data-sml-id="${ing.refId}" data-sml-nome="${ing.refNome}">
-                    <label class="block text-xs text-gray-600 mb-1 font-medium">${ing.refNome}</label>
-                    <select class="prd-lotto-sml-sel w-full px-3 py-2 border rounded-lg text-sm bg-white"
-                        onchange="ProduzioneModule.onLottoSMLChange(this)">
-                        ${opzioni}
-                    </select>
-                    <input type="text" class="prd-lotto-sml-manual hidden w-full px-3 py-2 border rounded-lg text-sm mt-1"
-                        placeholder="Inserisci lotto manualmente">
-                </div>`;
+            <div class="mb-2" data-sml-id="${ing.refId}" data-sml-nome="${ing.refNome}">
+                <label class="block text-xs text-gray-600 mb-1 font-medium">${ing.refNome}</label>
+                <select class="prd-lotto-sml-sel w-full px-3 py-2 border rounded-lg text-sm bg-white"
+                    onchange="ProduzioneModule.onLottoSMLChange(this)">
+                    ${opzioni}
+                </select>
+                <input type="text" class="prd-lotto-sml-manual hidden w-full px-3 py-2 border rounded-lg text-sm mt-1"
+                    placeholder="Inserisci lotto manualmente">
+            </div>`;
         }).join('')}
             </div>`;
     },
@@ -1046,18 +1054,32 @@ const ProduzioneModule = {
     apriScongela(id) {
         const p = this.getProduzione(id);
         if (!p || !p.congelato) return;
+        const disponibile = p.rimanente ?? p.quantita ?? 0;
 
         const html = `
     <div class="modal-overlay" id="scongela-modal">
         <div class="modal-box">
             <div class="bg-amber-700 text-white p-5 rounded-t-xl">
                 <h3 class="text-xl font-bold">🌡️ Scongela</h3>
-                <p class="text-sm opacity-80">${p.ricettaNome} · ${p.lotto} · ${p.quantita} ${p.unita}</p>
+                <p class="text-sm opacity-80">${p.ricettaNome} · ${p.lotto}</p>
             </div>
             <div class="p-5 space-y-4">
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
                     ❄️ Abbattuto il ${this.fmtData(p.dataAbbattimento || p.data)}
                     ${p.lottoOrigineNum ? `· da lotto ${p.lottoOrigineNum}` : ''}
+                    <br>Disponibile: <strong>${disponibile} ${p.unita}</strong>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        Quantità da scongelare
+                    </label>
+                    <div class="flex gap-2 items-center">
+                        <input type="number" id="scongela-qta" step="0.1" min="0.1"
+                            max="${disponibile}"
+                            value="${disponibile}"
+                            class="flex-1 px-4 py-2 border rounded-lg">
+                        <span class="text-gray-500">${p.unita}</span>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold mb-1 text-gray-700">
@@ -1067,12 +1089,6 @@ const ProduzioneModule = {
                         value="${new Date().toLocaleDateString('en-CA')}"
                         class="w-full px-4 py-2 border rounded-lg">
                 </div>
-                <div>
-                    <label class="block text-sm font-semibold mb-1 text-gray-700">Note</label>
-                    <input type="text" id="scongela-note"
-                        placeholder="Es. cotto per bar Rossi"
-                        class="w-full px-4 py-2 border rounded-lg">
-                </div>
                 <div class="flex gap-3 pt-2">
                     <button onclick="ProduzioneModule.chiudiScongela()"
                         class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
@@ -1080,7 +1096,7 @@ const ProduzioneModule = {
                     </button>
                     <button onclick="ProduzioneModule.confermaScongela('${id}')"
                         class="flex-1 bg-amber-700 text-white py-2.5 rounded-lg font-semibold hover:bg-amber-800">
-                        🌡️ Conferma scongelo
+                        🌡️ Scongela e registra produzione
                     </button>
                 </div>
             </div>
@@ -1098,18 +1114,45 @@ const ProduzioneModule = {
         const p = this.getProduzione(id);
         if (!p) return;
 
+        const qtaScongelare = parseFloat(document.getElementById('scongela-qta').value);
         const dataScongelo = document.getElementById('scongela-data').value;
-        const note = document.getElementById('scongela-note').value.trim();
+        const disponibile = p.rimanente ?? p.quantita ?? 0;
 
-        p.archiviato = true;
-        p.archiviatoAt = new Date().toISOString();
-        p.dataScongelo = dataScongelo;
-        p.noteScongelo = note || `Scongelato il ${this.fmtData(dataScongelo)}`;
+        if (!qtaScongelare || qtaScongelare <= 0) {
+            Utils.showToast('⚠️ Inserisci una quantità valida', 'warning');
+            return;
+        }
+        if (qtaScongelare > disponibile) {
+            Utils.showToast(`⚠️ Hai solo ${disponibile} ${p.unita} disponibili`, 'warning');
+            return;
+        }
+
+        // Riduce o archivia il lotto congelato
+        const nuovoRimanente = Math.round((disponibile - qtaScongelare) * 100) / 100;
+        p.rimanente = nuovoRimanente;
+        if (nuovoRimanente <= 0) {
+            p.archiviato = true;
+            p.archiviatoAt = new Date().toISOString();
+            p.dataScongelo = dataScongelo;
+        }
 
         this.save();
-        this.render();
         this.chiudiScongela();
-        Utils.showToast(`✅ ${p.ricettaNome} scongelato e archiviato`, 'success');
+
+        // Apre modal nuova produzione con il lotto scongelato preselezionato
+        // Salva riferimento al lotto scongelato per precompilare il modal
+        this._scongelaRef = {
+            prodId: id,
+            prodLotto: p.lotto,
+            prodNome: p.ricettaNome,
+            prodRicettaId: p.ricettaId,
+            qtaScongelo: qtaScongelare,
+            unita: p.unita,
+            dataScongelo: dataScongelo
+        };
+
+        this.openModalNew();
+        Utils.showToast(`✅ ${qtaScongelare} ${p.unita} di ${p.ricettaNome} scongelati — seleziona la ricetta da produrre`, 'info');
     },
 
     confermaCongelaAvanzo(id) {
