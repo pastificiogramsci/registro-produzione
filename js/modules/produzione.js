@@ -130,6 +130,10 @@ const ProduzioneModule = {
             note: dati.note?.trim() || '',
             lottiMP: dati.lottiMP || [],
             lottiSML: dati.lottiSML || [],
+            congelato: dati.congelato || false,
+            dataAbbattimento: dati.dataAbbattimento || '',
+            lottoOrigineId: dati.lottoOrigineId || '',
+            lottoOrigineNum: dati.lottoOrigineNum || '',
             archiviato: false,
             createdAt: new Date().toISOString()
         };
@@ -1116,7 +1120,12 @@ const ProduzioneModule = {
         }
 
         // Riduce produzione originale
-        p.rimanente = Math.round((disponibile - qtaCongelare) * 100) / 100;
+        const nuovoRimanente = Math.round((disponibile - qtaCongelare) * 100) / 100;
+        p.rimanente = nuovoRimanente;
+        if (nuovoRimanente <= 0) {
+            p.archiviato = true;
+            p.archiviatoAt = new Date().toISOString();
+        }
 
         // Crea nuova produzione congelata con tracciabilità
         const nuovaProd = this.addProduzione({
