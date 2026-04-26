@@ -368,6 +368,12 @@ const Storage = {
         // Usa Map per merge efficiente
         const merged = new Map();
 
+        // Se locale è vuoto e remoto ha dati, usa direttamente remoto
+        if (localData.length === 0 && remoteData.length > 0) {
+            console.log('⚡ Locale vuoto, uso direttamente dati remoti');
+            return remoteData;
+        }
+        
         // 1. Aggiungi tutti i records remoti
         remoteData.forEach(item => {
             const itemId = getItemId(item);
