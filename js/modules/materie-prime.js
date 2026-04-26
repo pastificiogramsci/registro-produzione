@@ -188,6 +188,113 @@ const MateriePrimeModule = {
         }
     },
 
+    apriDividiLotto(id) {
+        const c = this.carichi.find(c => c.id === id);
+        if (!c) return;
+        const disponibile = c.quantitaRimanente ?? c.quantita ?? 0;
+        if (disponibile <= 0) {
+            Utils.showToast('⚠️ Lotto esaurito, impossibile dividere', 'warning');
+            return;
+        }
+
+        const html = `
+    <div class="modal-overlay" id="dividi-modal">
+        <div class="modal-box">
+            <div class="bg-blue-700 text-white p-5 rounded-t-xl">
+                <h3 class="text-xl font-bold">✂️ Dividi lotto</h3>
+                <p class="text-sm opacity-80">${c.mpNome} · ${c.lotto}</p>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
+                    Disponibile: <strong>${disponibile} ${c.quantitaUnita || 'kg'}</strong>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        Quantità da congelare
+                    </label>
+                    <div class="flex gap-2 items-center">
+                        <input type="number" id="dividi-qta" step="0.1" min="0.1"
+                            max="${disponibile}"
+                            placeholder="Es. 2.5"
+                            class="flex-1 px-4 py-2 border rounded-lg">
+                        <span class="text-gray-500">${c.quantitaUnita || 'kg'}</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">
+                        La quantità rimanente nel lotto originale sarà ridotta automaticamente
+                    </p>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="MateriePrimeModule.chiudiDividiLotto()"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                        Annulla
+                    </button>
+                    <button onclick="MateriePrimeModule.confermaDividiLotto('${id}')"
+                        class="flex-1 bg-blue-700 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-800">
+                        ✂️ Dividi
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    chiudiDividiLotto() {
+        document.getElementById('dividi-modal')?.remove();
+    },
+
+    confermaDividiLotto(id) {
+        const c = this.carichi.find(c => c.id === id);
+        if (!c) return;
+
+        const qtaCongelare = parseFloat(document.getElementById('dividi-qta').value);
+        const disponibile = c.quantitaRimanente ?? c.quantita ?? 0;
+
+        if (!qtaCongelare || qtaCongelare <= 0) {
+            Utils.showToast('⚠️ Inserisci una quantità valida', 'warning');
+            return;
+        }
+        if (qtaCongelare >= disponibile) {
+            Utils.showToast('⚠️ La quantità da congelare deve essere minore del disponibile', 'warning');
+            return;
+        }
+
+        // Riduce lotto originale
+        c.quantitaRimanente = Math.round((disponibile - qtaCongelare) * 100) / 100;
+
+        // Crea nuovo lotto congelato
+        const nuovoLotto = {
+            id: this.newId(),
+            mpId: c.mpId,
+            mpNome: c.mpNome,
+            fornitore: c.fornitore,
+            lotto: c.lotto,
+            lottoInterno: c.lottoInterno,
+            dataArrivo: c.dataArrivo,
+            scadenza: c.scadenza,
+            note: `Porzione congelata da lotto ${c.lotto}`,
+            foto: c.foto,
+            congelato: true,
+            quantita: qtaCongelare,
+            quantitaUnita: c.quantitaUnita,
+            quantitaRimanente: qtaCongelare,
+            archiviato: false,
+            createdAt: new Date().toISOString()
+        };
+
+        this.carichi.push(nuovoLotto);
+        this.save();
+        this.render();
+        this.chiudiDividiLotto();
+
+        // Riapri il modal lotti
+        const mpId = document.getElementById('lotti-modal-mpId')?.value;
+        if (mpId) this.renderModalLotti(mpId);
+
+        Utils.showToast(`✅ Lotto diviso: ${c.quantitaRimanente} + ${qtaCongelare} ${c.quantitaUnita || 'kg'} ❄️`, 'success');
+    },
+
     openModalEditCarico(id) {
         const c = this.carichi.find(c => c.id === id);
         if (!c) return;
@@ -442,8 +549,8 @@ const MateriePrimeModule = {
                         <span class="text-amber-600 ml-2">· arr. ${this.fmtData(prossimo.dataArrivo)}</span>
                         ${prossimo.scadenza ? `<span class="text-amber-600"> · scad. ${this.fmtData(prossimo.scadenza)}</span>` : ''}
                         ${prossimo.quantitaRimanente !== undefined && prossimo.quantita > 0
-                            ? `<span class="text-amber-800 font-semibold ml-2">· ${prossimo.quantitaRimanente} ${prossimo.quantitaUnita || m.unita}</span>`
-                            : ''}
+                    ? `<span class="text-amber-800 font-semibold ml-2">· ${prossimo.quantitaRimanente} ${prossimo.quantitaUnita || m.unita}</span>`
+                    : ''}
                         ${scadAvviso}
                     </div>` : `
                     <div class="mt-2 text-sm text-red-500 font-medium">⚠️ Nessun lotto disponibile</div>`}
