@@ -670,6 +670,31 @@ const ProduzioneModule = {
                 ricettaId, ricettaNome, data, scadenza,
                 quantita, unita, operatore, note, lottiMP, lottiSML, congelato
             });
+
+            // Scarico automatico MP
+            const ricetta = RicetteModule.getRicetta(ricettaId);
+            const mpIng = ricetta?.ingredienti?.filter(i => i.tipo === 'mp') || [];
+            const avvisi = [];
+
+            mpIng.forEach(ing => {
+                if (!ing.quantita || !ricetta.resa) {
+                    avvisi.push(`${ing.refNome}: quantità non definita in ricetta`);
+                    return;
+                }
+                const qtaDaScaricare = (parseFloat(quantita) * parseFloat(ing.quantita)) / parseFloat(ricetta.resa);
+                const risultato = MateriePrimeModule.scaricoMP(ing.refId, qtaDaScaricare);
+                if (risultato.mancante > 0) {
+                    avvisi.push(`${ing.refNome}: scorta insufficiente (mancano ${risultato.mancante} ${ing.unita || 'kg'})`);
+                }
+            });
+
+            MateriePrimeModule.save();
+            MateriePrimeModule.render();
+
+            if (avvisi.length > 0) {
+                Utils.showToast(`⚠️ Scorte: ${avvisi[0]}`, 'warning');
+            }
+
             Utils.showToast(`✅ ${ricettaNome} · Lotto: ${prod.lotto}`, 'success');
             this.closeModal();
             this.render();
