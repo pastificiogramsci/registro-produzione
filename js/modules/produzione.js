@@ -348,20 +348,25 @@ const ProduzioneModule = {
                             class="text-gray-500 p-1.5 rounded-lg active:bg-gray-50 text-sm">🔍</button>
                         ${!p.archiviato ? `
                         <button onclick="event.stopPropagation();ProduzioneModule.archiviaP('${p.id}')"
-                            class="text-gray-400 p-1.5 rounded-lg active:bg-gray-50 text-sm">📦</button>` : ''}
+                            class="text-gray-400 p-1.5 rounded-lg active:bg-gray-50 text-sm">📦</button>
+                        <button onclick="event.stopPropagation();ProduzioneModule.apriCongelaAvanzo('${p.id}')"
+                            title="Congela avanzo"
+                            class="text-blue-400 p-1.5 rounded-lg active:bg-blue-50 text-sm">❄️</button>` : ''}
                         <button onclick="event.stopPropagation();ProduzioneModule.deleteProduzione('${p.id}')"
                             class="text-red-400 p-1.5 rounded-lg active:bg-red-50 text-sm">🗑</button>
                         <button onclick="EtichetteModule.stampa('${p.id}')" title="Stampa etichetta"
-                        class="text-gray-400 hover:text-amber-700 p-1">🏷️</button>
+                            class="text-gray-400 hover:text-amber-700 p-1">🏷️</button>
                     </div>
                 </div>
 
-                ${p.quantita ? `<div class="text-xs text-gray-400 mt-0.5">
+                    ${p.quantita ? `<div class="text-xs text-gray-400 mt-0.5">
                     ${p.quantita} ${p.unita}
                     ${p.rimanente !== undefined && p.rimanente !== p.quantita
-                    ? `· <span class="text-orange-600 font-medium">rimasti: ${p.rimanente} ${p.unita}</span>`
-                    : ''}
+                                    ? `· <span class="text-orange-600 font-medium">rimasti: ${p.rimanente} ${p.unita}</span>`
+                                    : ''}
                 </div>` : ''}
+                ${p.dataAbbattimento ? `<div class="text-xs text-blue-500 mt-0.5">❄️ Abbattuto il ${this.fmtData(p.dataAbbattimento)}</div>` : ''}
+                ${p.lottoOrigineNum ? `<div class="text-xs text-gray-400 mt-0.5">↳ Origine: lotto ${p.lottoOrigineNum}</div>` : ''}
 
                 <!-- Terza riga: lotti usati (troncata) -->
                 ${lottiStr ? `<div class="text-xs text-gray-300 mt-0.5 truncate">${lottiStr}</div>` : ''}
@@ -939,6 +944,114 @@ const ProduzioneModule = {
         this.render();
         this.chiudiConsumo();
         Utils.showToast('✅ Consumo registrato', 'success');
+    },
+
+    apriCongelaAvanzo(id) {
+        const p = this.getProduzione(id);
+        if (!p) return;
+        const disponibile = p.rimanente ?? p.quantita ?? 0;
+        if (disponibile <= 0) {
+            Utils.showToast('⚠️ Nessun avanzo disponibile', 'warning');
+            return;
+        }
+
+        const html = `
+    <div class="modal-overlay" id="congela-modal">
+        <div class="modal-box">
+            <div class="bg-blue-700 text-white p-5 rounded-t-xl">
+                <h3 class="text-xl font-bold">❄️ Congela avanzo</h3>
+                <p class="text-sm opacity-80">${p.ricettaNome} · ${p.lotto}</p>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
+                    Disponibile: <strong>${disponibile} ${p.unita}</strong>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        Data abbattimento
+                    </label>
+                    <input type="date" id="congela-data"
+                        value="${new Date().toLocaleDateString('en-CA')}"
+                        class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        Quantità da congelare
+                    </label>
+                    <div class="flex gap-2 items-center">
+                        <input type="number" id="congela-qta" step="0.1" min="0.1"
+                            max="${disponibile}"
+                            placeholder="Es. 1"
+                            class="flex-1 px-4 py-2 border rounded-lg">
+                        <span class="text-gray-500">${p.unita}</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">
+                        La quantità rimanente nella produzione originale sarà ridotta automaticamente
+                    </p>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="ProduzioneModule.chiudiCongelaAvanzo()"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                        Annulla
+                    </button>
+                    <button onclick="ProduzioneModule.confermaCongelaAvanzo('${id}')"
+                        class="flex-1 bg-blue-700 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-800">
+                        ❄️ Congela
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    chiudiCongelaAvanzo() {
+        document.getElementById('congela-modal')?.remove();
+    },
+
+    confermaCongelaAvanzo(id) {
+        const p = this.getProduzione(id);
+        if (!p) return;
+
+        const qtaCongelare = parseFloat(document.getElementById('congela-qta').value);
+        const dataAbbattimento = document.getElementById('congela-data').value;
+        const disponibile = p.rimanente ?? p.quantita ?? 0;
+
+        if (!qtaCongelare || qtaCongelare <= 0) {
+            Utils.showToast('⚠️ Inserisci una quantità valida', 'warning');
+            return;
+        }
+        if (qtaCongelare >= disponibile) {
+            Utils.showToast('⚠️ La quantità da congelare deve essere minore del disponibile', 'warning');
+            return;
+        }
+
+        // Riduce produzione originale
+        p.rimanente = Math.round((disponibile - qtaCongelare) * 100) / 100;
+
+        // Crea nuova produzione congelata con tracciabilità
+        const nuovaProd = this.addProduzione({
+            ricettaId: p.ricettaId,
+            ricettaNome: p.ricettaNome,
+            data: p.data,
+            scadenza: p.scadenza,
+            quantita: qtaCongelare,
+            unita: p.unita,
+            operatore: p.operatore,
+            note: `Avanzo congelato da lotto ${p.lotto}`,
+            lottiMP: p.lottiMP,
+            lottiSML: p.lottiSML,
+            congelato: true,
+            dataAbbattimento: dataAbbattimento,
+            lottoOrigineId: p.id,
+            lottoOrigineNum: p.lotto
+        });
+
+        this.save();
+        this.render();
+        this.chiudiCongelaAvanzo();
+        Utils.showToast(`✅ Avanzo congelato: ${qtaCongelare} ${p.unita} ❄️ · Lotto: ${nuovaProd.lotto}`, 'success');
     },
 
     openModalEdit(id) {
