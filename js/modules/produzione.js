@@ -935,7 +935,6 @@ const ProduzioneModule = {
                                 });
                             }
                         }
-                        // Controlla ricorsivamente
                         const subProblemi = [];
                         this.controllaSml(ricettaSml, ing.refNome, subProblemi, new Set([ricettaId]), data);
                         subProblemi.filter(p => p.tipo === 'sml_bloccante' || p.tipo === 'mp_no_lotti')
@@ -952,7 +951,6 @@ const ProduzioneModule = {
                             });
                         }
                     }
-
                 }
             }
 
@@ -960,7 +958,6 @@ const ProduzioneModule = {
                 const primo = problemiBloccanti[0];
                 if (primo.tipo === 'mp_no_lotti') {
                     Utils.showToast(`⛔ Aggiungi prima il carico: ${primo.nome.split(' (per')[0]}`, 'warning');
-                    // Salva stato modal produzione
                     this._pendingProduzione = { ricettaId, data, scadenza, quantita, unita, operatore, note, congelato };
                     this.closeModal();
                     MateriePrimeModule.openModalCarico(primo.refId);
@@ -1004,6 +1001,30 @@ const ProduzioneModule = {
             Utils.showToast(`✅ ${ricettaNome} · Lotto: ${prod.lotto}`, 'success');
             this.closeModal();
             this.render();
+
+            // Se c'era una produzione in sospeso, riapri il modal
+            if (this._pendingProduzione) {
+                const p = this._pendingProduzione;
+                this._pendingProduzione = null;
+                setTimeout(() => {
+                    this.openModalNew();
+                    setTimeout(() => {
+                        const sel = document.getElementById('prd-form-ricetta');
+                        for (let opt of sel.options) {
+                            if (opt.value === p.ricettaId) { opt.selected = true; this.onRicettaChange(); break; }
+                        }
+                        document.getElementById('prd-form-data').value = p.data;
+                        document.getElementById('prd-form-scadenza').value = p.scadenza || '';
+                        document.getElementById('prd-form-quantita').value = p.quantita || '';
+                        document.getElementById('prd-form-unita').value = p.unita || 'kg';
+                        document.getElementById('prd-form-operatore').value = p.operatore || '';
+                        document.getElementById('prd-form-note').value = p.note || '';
+                        document.getElementById('prd-form-congelato').checked = p.congelato || false;
+                    }, 150);
+                }, 300);
+                return;
+            }
+
             if (!this._scongelaRef) {
                 this.verificaSemilavoratiNecessari(prod);
             } else {
