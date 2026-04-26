@@ -739,11 +739,15 @@ const ProduzioneModule = {
             if (avvisi.length > 0) {
                 Utils.showToast(`⚠️ Scorte: ${avvisi[0]}`, 'warning');
             }
-
             Utils.showToast(`✅ ${ricettaNome} · Lotto: ${prod.lotto}`, 'success');
             this.closeModal();
             this.render();
-            this.verificaSemilavoratiNecessari(prod);
+            // Se veniamo dal flusso scongela, non mostrare popup consumo
+            if (!this._scongelaRef) {
+                this.verificaSemilavoratiNecessari(prod);
+            } else {
+                this._scongelaRef = null;
+            }
         }
     },
 
