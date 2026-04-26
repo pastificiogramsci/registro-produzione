@@ -360,11 +360,18 @@ const ProduzioneModule = {
                         <button onclick="event.stopPropagation();ProduzioneModule.openModalTracciabilita('${p.id}')"
                             class="text-gray-500 p-1.5 rounded-lg active:bg-gray-50 text-sm">🔍</button>
                         ${!p.archiviato ? `
-                        <button onclick="event.stopPropagation();ProduzioneModule.archiviaP('${p.id}')"
-                            class="text-gray-400 p-1.5 rounded-lg active:bg-gray-50 text-sm">📦</button>
-                        <button onclick="event.stopPropagation();ProduzioneModule.apriCongelaAvanzo('${p.id}')"
-                            title="Congela avanzo"
-                            class="text-blue-400 p-1.5 rounded-lg active:bg-blue-50 text-sm">❄️</button>` : ''}
+                            <button onclick="event.stopPropagation();ProduzioneModule.archiviaP('${p.id}')"
+                                class="text-gray-400 p-1.5 rounded-lg active:bg-gray-50 text-sm">📦</button>
+                            ${p.congelato ? `
+                                <button onclick="event.stopPropagation();ProduzioneModule.apriScongela('${p.id}')"
+                                    title="Scongela"
+                                    class="text-amber-500 p-1.5 rounded-lg active:bg-amber-50 text-sm">🌡️</button>
+                            ` : `
+                                <button onclick="event.stopPropagation();ProduzioneModule.apriCongelaAvanzo('${p.id}')"
+                                    title="Congela avanzo"
+                                    class="text-blue-400 p-1.5 rounded-lg active:bg-blue-50 text-sm">❄️</button>
+                            `}
+                        ` : ''}
                         <button onclick="event.stopPropagation();ProduzioneModule.deleteProduzione('${p.id}')"
                             class="text-red-400 p-1.5 rounded-lg active:bg-red-50 text-sm">🗑</button>
                         <button onclick="EtichetteModule.stampa('${p.id}')" title="Stampa etichetta"
@@ -375,8 +382,8 @@ const ProduzioneModule = {
                 ${p.quantita ? `<div class="text-xs text-gray-400 mt-0.5">
                     ${p.quantita} ${p.unita}
                     ${p.rimanente !== undefined && p.rimanente !== p.quantita
-                        ? `· <span class="text-orange-600 font-medium">rimasti: ${p.rimanente} ${p.unita}</span>`
-                        : ''}
+                    ? `· <span class="text-orange-600 font-medium">rimasti: ${p.rimanente} ${p.unita}</span>`
+                    : ''}
                 </div>` : ''}
                 ${notaScongelo}
 
@@ -1020,6 +1027,75 @@ const ProduzioneModule = {
 
     chiudiCongelaAvanzo() {
         document.getElementById('congela-modal')?.remove();
+    },
+
+    apriScongela(id) {
+        const p = this.getProduzione(id);
+        if (!p || !p.congelato) return;
+
+        const html = `
+    <div class="modal-overlay" id="scongela-modal">
+        <div class="modal-box">
+            <div class="bg-amber-700 text-white p-5 rounded-t-xl">
+                <h3 class="text-xl font-bold">🌡️ Scongela</h3>
+                <p class="text-sm opacity-80">${p.ricettaNome} · ${p.lotto} · ${p.quantita} ${p.unita}</p>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                    ❄️ Abbattuto il ${this.fmtData(p.dataAbbattimento || p.data)}
+                    ${p.lottoOrigineNum ? `· da lotto ${p.lottoOrigineNum}` : ''}
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        Data scongelo
+                    </label>
+                    <input type="date" id="scongela-data"
+                        value="${new Date().toLocaleDateString('en-CA')}"
+                        class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Note</label>
+                    <input type="text" id="scongela-note"
+                        placeholder="Es. cotto per bar Rossi"
+                        class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="ProduzioneModule.chiudiScongela()"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                        Annulla
+                    </button>
+                    <button onclick="ProduzioneModule.confermaScongela('${id}')"
+                        class="flex-1 bg-amber-700 text-white py-2.5 rounded-lg font-semibold hover:bg-amber-800">
+                        🌡️ Conferma scongelo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    chiudiScongela() {
+        document.getElementById('scongela-modal')?.remove();
+    },
+
+    confermaScongela(id) {
+        const p = this.getProduzione(id);
+        if (!p) return;
+
+        const dataScongelo = document.getElementById('scongela-data').value;
+        const note = document.getElementById('scongela-note').value.trim();
+
+        p.archiviato = true;
+        p.archiviatoAt = new Date().toISOString();
+        p.dataScongelo = dataScongelo;
+        p.noteScongelo = note || `Scongelato il ${this.fmtData(dataScongelo)}`;
+
+        this.save();
+        this.render();
+        this.chiudiScongela();
+        Utils.showToast(`✅ ${p.ricettaNome} scongelato e archiviato`, 'success');
     },
 
     confermaCongelaAvanzo(id) {
