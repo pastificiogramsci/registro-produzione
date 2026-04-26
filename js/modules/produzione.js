@@ -618,7 +618,7 @@ const ProduzioneModule = {
                     }
                 }
 
-                this.controllaSml(ricettaSml, ing.refNome, problemi, new Set([ricettaId]));
+                this.controllaSml(ricettaSml, ing.refNome, problemi, new Set([ricettaId]), quantita > 0 ? document.getElementById('prd-form-data')?.value : null);
             }
         }
 
@@ -670,7 +670,7 @@ const ProduzioneModule = {
         document.body.insertAdjacentHTML('beforeend', html);
     },
 
-    controllaSml(ricettaSml, nomeParent, problemi, visited) {
+    controllaSml(ricettaSml, nomeParent, problemi, visited, dataProduzione) {
         if (!ricettaSml?.ingredienti) return;
         if (visited.has(ricettaSml.id)) return;
         visited.add(ricettaSml.id);
@@ -679,8 +679,8 @@ const ProduzioneModule = {
             if (ing.tipo === 'mp') {
                 const mpObj = MateriePrimeModule.getMP(ing.refId);
                 if (mpObj?.noTraccia) continue;
-                const lottiAttivi = MateriePrimeModule.getLottiAttivi(ing.refId);
-                if (lottiAttivi.length === 0) {
+                const lottiDisp = MateriePrimeModule.getLottiPerProduzione(ing.refId, dataProduzione);
+                if (lottiDisp.length === 0) {
                     problemi.push({
                         tipo: 'mp_no_lotti',
                         nome: `${ing.refNome} (per ${nomeParent})`,
@@ -718,7 +718,7 @@ const ProduzioneModule = {
                     }
                 }
 
-                this.controllaSml(ricettaSub, ing.refNome, problemi, visited);
+                this.controllaSml(ricettaSub, ing.refNome, problemi, visited, dataProduzione);
             }
         }
     },
@@ -933,7 +933,7 @@ const ProduzioneModule = {
                         }
                         // Controlla ricorsivamente
                         const subProblemi = [];
-                        this.controllaSml(ricettaSml, ing.refNome, subProblemi, new Set([ricettaId]));
+                        this.controllaSml(ricettaSml, ing.refNome, subProblemi, new Set([ricettaId]), data);
                         subProblemi.filter(p => p.tipo === 'sml_bloccante' || p.tipo === 'mp_no_lotti')
                             .forEach(p => problemiBloccanti.push(p));
                     } else if (ing.tipo === 'mp') {
