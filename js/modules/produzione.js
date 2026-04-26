@@ -616,7 +616,7 @@ const ProduzioneModule = {
                 }
 
                 // Controlla ricorsivamente ingredienti del SML
-                this.controllaSml(ricettaSml, ing.refNome, problemi, new Set([ricettaId, ing.refId]));
+                this.controllaSml(ricettaSml, ing.refNome, problemi, new Set([ricettaId]));
             }
         }
 
