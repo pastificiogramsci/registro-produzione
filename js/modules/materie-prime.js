@@ -765,6 +765,28 @@ const MateriePrimeModule = {
         if (mpId2 && !document.getElementById('lotti-modal').classList.contains('hidden')) {
             this.renderModalLotti(mpId2);
         }
+
+        // Riapri modal produzione se in sospeso
+        if (ProduzioneModule._pendingProduzione) {
+            const p = ProduzioneModule._pendingProduzione;
+            ProduzioneModule._pendingProduzione = null;
+            setTimeout(() => {
+                ProduzioneModule.openModalNew();
+                setTimeout(() => {
+                    const sel = document.getElementById('prd-form-ricetta');
+                    for (let opt of sel.options) {
+                        if (opt.value === p.ricettaId) { opt.selected = true; ProduzioneModule.onRicettaChange(); break; }
+                    }
+                    document.getElementById('prd-form-data').value = p.data;
+                    document.getElementById('prd-form-scadenza').value = p.scadenza || '';
+                    document.getElementById('prd-form-quantita').value = p.quantita || '';
+                    document.getElementById('prd-form-unita').value = p.unita || 'kg';
+                    document.getElementById('prd-form-operatore').value = p.operatore || '';
+                    document.getElementById('prd-form-note').value = p.note || '';
+                    document.getElementById('prd-form-congelato').checked = p.congelato || false;
+                }, 150);
+            }, 300);
+        }
     },
 
     // ==========================================

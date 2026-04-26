@@ -960,10 +960,13 @@ const ProduzioneModule = {
                 const primo = problemiBloccanti[0];
                 if (primo.tipo === 'mp_no_lotti') {
                     Utils.showToast(`⛔ Aggiungi prima il carico: ${primo.nome.split(' (per')[0]}`, 'warning');
+                    // Salva stato modal produzione
+                    this._pendingProduzione = { ricettaId, data, scadenza, quantita, unita, operatore, note, congelato };
                     this.closeModal();
                     MateriePrimeModule.openModalCarico(primo.refId);
                 } else if (primo.tipo === 'sml_bloccante') {
                     Utils.showToast(`⛔ Produci prima: ${primo.nome.split(' (per')[0]}`, 'warning');
+                    this._pendingProduzione = { ricettaId, data, scadenza, quantita, unita, operatore, note, congelato };
                     this.closeModal();
                     this.openModalNewPerSml(primo.ricettaId);
                 }
