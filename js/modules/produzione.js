@@ -601,14 +601,14 @@ const ProduzioneModule = {
             } else if (ing.tipo === 'sml') {
                 const ricettaSml = RicetteModule.getRicetta(ing.refId);
                 const isSfoglia = ricettaSml?.categoria === 'Sfoglia';
+                const isBase = ricettaSml?.categoria === 'Semilavorato base';
 
-                const isBase = ricettaSub?.categoria === 'Semilavorato base';
                 if (!isSfoglia) {
                     const attiviSml = this.getAttiviPerRicetta(ing.refId);
                     if (attiviSml.length === 0) {
                         problemi.push({
                             tipo: isBase ? 'sml_bloccante' : 'sml_mancante',
-                            nome: `${ing.refNome} (per ${nomeParent})`,
+                            nome: ing.refNome,
                             refId: ing.refId,
                             ricettaId: ing.refId,
                             msg: isBase
@@ -618,7 +618,6 @@ const ProduzioneModule = {
                     }
                 }
 
-                // Controlla ricorsivamente ingredienti del SML
                 this.controllaSml(ricettaSml, ing.refNome, problemi, new Set([ricettaId]));
             }
         }
@@ -650,11 +649,11 @@ const ProduzioneModule = {
                             ✅ Verrà creato automaticamente con lotti FIFO
                         </span>`;
             html += `
-        <div class="border rounded-lg p-3 ${p.tipo === 'sml_mancante' ? 'bg-blue-50 border-blue-200' : p.tipo === 'sml_bloccante' ? 'bg-red-50 border-red-300' : 'bg-red-50 border-red-200'}
-            <div class="font-semibold text-gray-800 text-sm">${p.nome}</div>
-            <div class="text-xs text-gray-500 mt-0.5">${p.msg}</div>
-            ${actionBtn}
-        </div>`;
+            <div class="border rounded-lg p-3 ${p.tipo === 'sml_mancante' ? 'bg-blue-50 border-blue-200' : p.tipo === 'sml_bloccante' ? 'bg-red-50 border-red-300' : 'bg-red-50 border-red-200'}">
+                <div class="font-semibold text-gray-800 text-sm">${p.nome}</div>
+                <div class="text-xs text-gray-500 mt-0.5">${p.msg}</div>
+                ${actionBtn}
+            </div>`;
         });
 
         html += `
@@ -702,21 +701,23 @@ const ProduzioneModule = {
             } else if (ing.tipo === 'sml') {
                 const ricettaSub = RicetteModule.getRicetta(ing.refId);
                 const isSfoglia = ricettaSub?.categoria === 'Sfoglia';
+                const isBase = ricettaSub?.categoria === 'Semilavorato base';
 
                 if (!isSfoglia) {
                     const attiviSml = this.getAttiviPerRicetta(ing.refId);
                     if (attiviSml.length === 0) {
                         problemi.push({
-                            tipo: 'sml_mancante',
+                            tipo: isBase ? 'sml_bloccante' : 'sml_mancante',
                             nome: `${ing.refNome} (per ${nomeParent})`,
                             refId: ing.refId,
                             ricettaId: ing.refId,
-                            msg: `Nessuna produzione attiva`
+                            msg: isBase
+                                ? `⛔ Deve essere prodotto prima`
+                                : `Nessuna produzione attiva`
                         });
                     }
                 }
 
-                // Ricorsione
                 this.controllaSml(ricettaSub, ing.refNome, problemi, visited);
             }
         }
