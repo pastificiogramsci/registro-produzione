@@ -89,6 +89,7 @@ const MateriePrimeModule = {
             unita: dati.unita || 'kg',
             note: dati.note?.trim() || '',
             foto: dati.foto?.trim() || '',
+            noTraccia: dati.noTraccia || false,
             createdAt: new Date().toISOString()
         };
         this.materiePrime.push(mp);
@@ -103,12 +104,12 @@ const MateriePrimeModule = {
         mp.fornitoreAbitual = dati.fornitoreAbitual?.trim() ?? mp.fornitoreAbitual;
         mp.unita = dati.unita || mp.unita;
         mp.note = dati.note?.trim() ?? mp.note;
+        mp.noTraccia = dati.noTraccia ?? mp.noTraccia;
         this.save();
         return mp;
     },
 
     deleteMP(id) {
-        // Controlla se ci sono carichi attivi
         const haCar = this.carichi.some(c => c.mpId === id && !c.archiviato);
         if (haCar) {
             Utils.showToast('⚠️ Archivia prima i lotti attivi di questa MP', 'warning');
@@ -615,10 +616,10 @@ const MateriePrimeModule = {
         document.getElementById('mp-form-fornitore').value = '';
         document.getElementById('mp-form-unita').value = 'kg';
         document.getElementById('mp-form-note').value = '';
+        document.getElementById('mp-form-no-traccia').checked = false;
         document.getElementById('mp-modal').classList.remove('hidden');
         document.getElementById('mp-form-nome').focus();
         document.getElementById('mp-btn-elimina')?.classList.add('hidden');
-
     },
 
     openModalEditMP(id) {
@@ -630,6 +631,7 @@ const MateriePrimeModule = {
         document.getElementById('mp-form-fornitore').value = mp.fornitoreAbitual;
         document.getElementById('mp-form-unita').value = mp.unita;
         document.getElementById('mp-form-note').value = mp.note;
+        document.getElementById('mp-form-no-traccia').checked = mp.noTraccia || false;
         document.getElementById('mp-modal').classList.remove('hidden');
         document.getElementById('mp-btn-elimina')?.classList.remove('hidden');
     },
@@ -651,14 +653,15 @@ const MateriePrimeModule = {
         const fornitore = document.getElementById('mp-form-fornitore').value.trim();
         const unita = document.getElementById('mp-form-unita').value;
         const note = document.getElementById('mp-form-note').value.trim();
+        const noTraccia = document.getElementById('mp-form-no-traccia').checked;
 
         if (!nome) { Utils.showToast('⚠️ Il nome è obbligatorio', 'warning'); return; }
 
         if (id) {
-            this.updateMP(id, { nome, fornitoreAbitual: fornitore, unita, note });
+            this.updateMP(id, { nome, fornitoreAbitual: fornitore, unita, note, noTraccia });
             Utils.showToast('✅ Materia prima aggiornata', 'success');
         } else {
-            const nuova = this.addMP({ nome, fornitoreAbitual: fornitore, unita, note });
+            const nuova = this.addMP({ nome, fornitoreAbitual: fornitore, unita, note, noTraccia });
             if (!nuova) return;
             Utils.showToast(`✅ "${nome}" aggiunta`, 'success');
         }
@@ -826,8 +829,8 @@ const MateriePrimeModule = {
                         <span class="font-mono font-bold text-amber-800">${c.lotto}</span>
                         ${c.lottoInterno ? '<span class="text-xs bg-gray-200 text-gray-600 px-1.5 rounded">interno</span>' : ''}
                         ${c.archiviato
-                        ? '<span class="text-xs bg-gray-300 text-gray-600 px-1.5 rounded">archiviato</span>'
-                        : '<span class="text-xs bg-green-100 text-green-700 px-1.5 rounded font-medium">attivo</span>'}
+                ? '<span class="text-xs bg-gray-300 text-gray-600 px-1.5 rounded">archiviato</span>'
+                : '<span class="text-xs bg-green-100 text-green-700 px-1.5 rounded font-medium">attivo</span>'}
                     </div>
                     <div class="text-sm text-gray-600 mt-1">
                         📦 ${c.fornitore || '–'} &nbsp;·&nbsp;

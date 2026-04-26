@@ -573,6 +573,9 @@ const ProduzioneModule = {
         for (const ing of ricetta.ingredienti) {
             if (ing.tipo === 'mp') {
                 // Controlla scorta MP
+                const mpObj = MateriePrimeModule.getMP(ing.refId);
+                if (mpObj?.noTraccia) continue; // salta MP non tracciata
+
                 const giacenza = MateriePrimeModule.getGiacenza(ing.refId);
                 const lottiAttivi = MateriePrimeModule.getLottiAttivi(ing.refId);
                 const hasLotti = lottiAttivi.length > 0;
@@ -616,6 +619,8 @@ const ProduzioneModule = {
                 // Controlla MP del SML
                 if (ricettaSml?.ingredienti) {
                     for (const mpIng of ricettaSml.ingredienti.filter(i => i.tipo === 'mp')) {
+                        const mpObj = MateriePrimeModule.getMP(mpIng.refId);
+                        if (mpObj?.noTraccia) continue; // salta MP non tracciata
                         const lottiAttivi = MateriePrimeModule.getLottiAttivi(mpIng.refId);
                         if (lottiAttivi.length === 0) {
                             problemi.push({
