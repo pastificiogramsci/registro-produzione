@@ -432,7 +432,8 @@ const ProduzioneModule = {
         // Semilavorati
         if (prod.lottiSML?.length > 0) {
             prod.lottiSML.forEach(s => {
-                const smlDet = this.produzioni.find(x => x.lotto === s.lotto && x.id !== prod.id);
+                const smlDet = this.produzioni.find(x => x.lotto === s.lotto && x.id !== prod.id)
+                    || this.produzioni.find(x => x.id === s.smlRefId);
                 html += `
             <div style="padding-left:${indent}px" class="flex items-start gap-1.5 py-1 border-b border-gray-100 last:border-0">
                 <span class="text-gray-300 text-xs mt-0.5">↳</span>
@@ -1273,7 +1274,8 @@ const ProduzioneModule = {
                 <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
                     <p class="text-xs font-bold text-orange-700 uppercase mb-2">🥩 Semilavorati Utilizzati</p>
                     ${p.lottiSML.map(s => {
-            const smlDet = this.produzioni.find(x => x.lotto === s.lotto);
+            const smlDet = this.produzioni.find(x => x.lotto === s.lotto)
+                || this.produzioni.find(x => x.id === s.smlRefId);
             return `
                         <div class="mb-2 pb-2 border-b border-orange-100 last:border-0">
                             <p class="font-medium text-gray-800">${s.smlNome}</p>
