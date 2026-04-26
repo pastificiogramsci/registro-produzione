@@ -995,6 +995,23 @@ const ProduzioneModule = {
             MateriePrimeModule.save();
             MateriePrimeModule.render();
 
+            const smlIng = ricetta?.ingredienti?.filter(i => i.tipo === 'sml') || [];
+            smlIng.forEach(ing => {
+                if (!ing.quantita || !ricetta.resa) return;
+                const qtaDaScaricare = (parseFloat(quantita) * parseFloat(ing.quantita)) / parseFloat(ricetta.resa);
+                const attiviSml = this.getAttiviPerRicetta(ing.refId);
+                if (attiviSml.length === 0) return;
+                const smlProd = attiviSml[0]; // FIFO
+                const disponibile = smlProd.rimanente ?? smlProd.quantita ?? 0;
+                const nuovoRimanente = Math.round((disponibile - qtaDaScaricare) * 100) / 100;
+                smlProd.rimanente = Math.max(0, nuovoRimanente);
+                if (nuovoRimanente <= 0) {
+                    smlProd.archiviato = true;
+                    smlProd.archiviatoAt = new Date().toISOString();
+                }
+            });
+            this.save()
+
             if (avvisi.length > 0) {
                 Utils.showToast(`⚠️ Scorte: ${avvisi[0]}`, 'warning');
             }
