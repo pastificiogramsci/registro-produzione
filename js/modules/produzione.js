@@ -715,10 +715,14 @@ const ProduzioneModule = {
                                 ? `⛔ Deve essere prodotto prima`
                                 : `Nessuna produzione attiva`
                         });
+                        // Controlla ricorsivamente SOLO se il SML non esiste
+                        this.controllaSml(ricettaSub, ing.refNome, problemi, visited, dataProduzione);
                     }
+                    // Se il SML esiste già → non controllare le sue MP
+                } else {
+                    // Sfoglia: controlla sempre le sue MP
+                    this.controllaSml(ricettaSub, ing.refNome, problemi, visited, dataProduzione);
                 }
-
-                this.controllaSml(ricettaSub, ing.refNome, problemi, visited, dataProduzione);
             }
         }
     },
