@@ -59,6 +59,8 @@ const RicetteModule = {
         r.vendibile = dati.vendibile ?? r.vendibile;
         r.note = dati.note?.trim() ?? r.note;
         r.shelfLife = dati.shelfLife ? parseInt(dati.shelfLife) : null;
+        r.resa = dati.resa || r.resa;
+        r.resaUnita = dati.resaUnita || r.resaUnita;
         r.updatedAt = new Date().toISOString();
         this.save();
         return r;
@@ -340,14 +342,16 @@ const RicetteModule = {
         const vendibile = document.getElementById('ric-form-vendibile').checked;
         const note = document.getElementById('ric-form-note').value.trim();
         const shelfLife = document.getElementById('ric-form-shelf').value;
+        const resa = parseFloat(document.getElementById('ric-form-resa').value) || 0;
+        const resaUnita = document.getElementById('ric-form-resa-unita').value;
 
         if (!nome) { Utils.showToast('⚠️ Il nome è obbligatorio', 'warning'); return; }
 
         if (id) {
-            this.updateRicetta(id, { nome, categoria, semilavorato: sml, vendibile, note, shelfLife });
+            this.updateRicetta(id, { nome, categoria, semilavorato: sml, vendibile, note, shelfLife, resa, resaUnita });
             Utils.showToast('✅ Ricetta aggiornata', 'success');
         } else {
-            this.addRicetta({ nome, categoria, semilavorato: sml, vendibile, note, shelfLife });
+            this.addRicetta({ nome, categoria, semilavorato: sml, vendibile, note, shelfLife, resa, resaUnita });
             Utils.showToast(`✅ "${nome}" aggiunta`, 'success');
         }
 
