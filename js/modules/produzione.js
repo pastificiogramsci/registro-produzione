@@ -83,7 +83,10 @@ const ProduzioneModule = {
 
     isSemilavorato(ricettaId) {
         const tipo = this.getTipo(ricettaId);
-        return tipo === 'base' || tipo === 'composto' || tipo === 'sfoglia';
+        if (tipo === 'base' || tipo === 'composto' || tipo === 'sfoglia') return true;
+        // Controlla anche il flag semilavorato nella ricetta
+        const ricetta = RicetteModule.getRicetta(ricettaId);
+        return ricetta?.semilavorato === true;
     },
 
     // ==========================================
