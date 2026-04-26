@@ -568,13 +568,13 @@ const ProduzioneModule = {
         if (!ricetta || !ricetta.ingredienti) return;
 
         const problemi = [];
+        const visited = new Set([ricettaId]);
 
         // Controlla ogni ingrediente
         for (const ing of ricetta.ingredienti) {
             if (ing.tipo === 'mp') {
-                // Controlla scorta MP
                 const mpObj = MateriePrimeModule.getMP(ing.refId);
-                if (mpObj?.noTraccia) continue; // salta MP non tracciata
+                if (mpObj?.noTraccia) continue;
 
                 const giacenza = MateriePrimeModule.getGiacenza(ing.refId);
                 const lottiAttivi = MateriePrimeModule.getLottiAttivi(ing.refId);
@@ -603,7 +603,6 @@ const ProduzioneModule = {
                 const isSfoglia = ricettaSml?.categoria === 'Sfoglia';
 
                 if (!isSfoglia) {
-                    // Controlla se esiste produzione attiva
                     const attiviSml = this.getAttiviPerRicetta(ing.refId);
                     if (attiviSml.length === 0) {
                         problemi.push({
@@ -611,27 +610,13 @@ const ProduzioneModule = {
                             nome: ing.refNome,
                             refId: ing.refId,
                             ricettaId: ing.refId,
-                            msg: `Nessuna produzione attiva`
+                            msg: `Nessuna produzione attiva — verrà creato automaticamente`
                         });
                     }
                 }
 
-                // Controlla MP del SML
-                if (ricettaSml?.ingredienti) {
-                    for (const mpIng of ricettaSml.ingredienti.filter(i => i.tipo === 'mp')) {
-                        const mpObj = MateriePrimeModule.getMP(mpIng.refId);
-                        if (mpObj?.noTraccia) continue; // salta MP non tracciata
-                        const lottiAttivi = MateriePrimeModule.getLottiAttivi(mpIng.refId);
-                        if (lottiAttivi.length === 0) {
-                            problemi.push({
-                                tipo: 'mp_no_lotti',
-                                nome: `${mpIng.refNome} (per ${ing.refNome})`,
-                                refId: mpIng.refId,
-                                msg: `Nessun lotto attivo`
-                            });
-                        }
-                    }
-                }
+                // Controlla ricorsivamente ingredienti del SML
+                this.controllaSml(ricettaSml, ing.refNome, problemi, new Set([...visited]));
             }
         }
 
@@ -653,10 +638,9 @@ const ProduzioneModule = {
                 class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200 mt-1">
                 + Aggiungi carico
                </button>`
-                : `<button onclick="ProduzioneModule.chiudiDisponibilita();ProduzioneModule.openModalNewPerSml('${p.ricettaId}')"
-                class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 mt-1">
-                + Registra produzione
-               </button>`;
+                : `<span class="text-xs text-blue-500 mt-1 block">
+                ✅ Verrà creato automaticamente con lotti FIFO
+               </span>`;
 
             html += `
         <div class="border rounded-lg p-3 ${p.tipo === 'sml_mancante' ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}">
@@ -678,6 +662,61 @@ const ProduzioneModule = {
     </div>`;
 
         document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    controllaSml(ricettaSml, nomeParent, problemi, visited) {
+        if (!ricettaSml?.ingredienti) return;
+        if (visited.has(ricettaSml.id)) return;
+        visited.add(ricettaSml.id);
+
+        for (const ing of ricettaSml.ingredienti) {
+            if (ing.tipo === 'mp') {
+                const mpObj = MateriePrimeModule.getMP(ing.refId);
+                if (mpObj?.noTraccia) continue;
+                const lottiAttivi = MateriePrimeModule.getLottiAttivi(ing.refId);
+                if (lottiAttivi.length === 0) {
+                    problemi.push({
+                        tipo: 'mp_no_lotti',
+                        nome: `${ing.refNome} (per ${nomeParent})`,
+                        refId: ing.refId,
+                        msg: `Nessun lotto attivo`
+                    });
+                } else {
+                    const giacenza = MateriePrimeModule.getGiacenza(ing.refId);
+                    if (giacenza <= 0 && ing.quantita) {
+                        problemi.push({
+                            tipo: 'mp_scorta',
+                            nome: `${ing.refNome} (per ${nomeParent})`,
+                            refId: ing.refId,
+                            msg: `Scorta esaurita`
+                        });
+                    }
+                }
+            } else if (ing.tipo === 'sml') {
+                const ricettaSub = RicetteModule.getRicetta(ing.refId);
+                const isSfoglia = ricettaSub?.categoria === 'Sfoglia';
+
+                if (!isSfoglia) {
+                    const attiviSml = this.getAttiviPerRicetta(ing.refId);
+                    if (attiviSml.length === 0) {
+                        problemi.push({
+                            tipo: 'sml_mancante',
+                            nome: `${ing.refNome} (per ${nomeParent})`,
+                            refId: ing.refId,
+                            ricettaId: ing.refId,
+                            msg: `Nessuna produzione attiva`
+                        });
+                    }
+                }
+
+                // Ricorsione
+                this.controllaSml(ricettaSub, ing.refNome, problemi, visited);
+            }
+        }
+    },
+
+    chiudiDisponibilita() {
+        document.getElementById('disponibilita-modal')?.remove();
     },
 
     chiudiDisponibilita() {
