@@ -421,24 +421,28 @@ const ProduzioneModule = {
         if (icon) icon.textContent = isHidden ? '▲' : '▼';
     },
 
-    renderAlberoHTML(prod, livello) {
+    renderAlberoHTML(prod, livello, visited = new Set()) {
+        if (livello > 5) return '';
+        if (visited.has(prod.id)) return '';
+        visited.add(prod.id);
+
         let html = '';
         const indent = livello * 16;
 
         // Semilavorati
         if (prod.lottiSML?.length > 0) {
             prod.lottiSML.forEach(s => {
-                const smlDet = this.produzioni.find(x => x.lotto === s.lotto);
+                const smlDet = this.produzioni.find(x => x.lotto === s.lotto && x.id !== prod.id);
                 html += `
-                <div style="padding-left:${indent}px" class="flex items-start gap-1.5 py-1 border-b border-gray-100 last:border-0">
-                    <span class="text-gray-300 text-xs mt-0.5">↳</span>
-                    <div>
-                        <span class="text-xs font-semibold text-orange-700">🥩 ${s.smlNome}</span>
-                        <span class="font-mono text-xs text-orange-600 ml-1">${s.lotto}</span>
-                        ${smlDet?.scadenza ? `<span class="text-xs text-gray-400 ml-1">scad. ${this.fmtData(smlDet.scadenza)}</span>` : ''}
-                        ${smlDet ? this.renderAlberoHTML(smlDet, livello + 1) : ''}
-                    </div>
-                </div>`;
+            <div style="padding-left:${indent}px" class="flex items-start gap-1.5 py-1 border-b border-gray-100 last:border-0">
+                <span class="text-gray-300 text-xs mt-0.5">↳</span>
+                <div>
+                    <span class="text-xs font-semibold text-orange-700">🥩 ${s.smlNome}</span>
+                    <span class="font-mono text-xs text-orange-600 ml-1">${s.lotto}</span>
+                    ${smlDet?.scadenza ? `<span class="text-xs text-gray-400 ml-1">scad. ${this.fmtData(smlDet.scadenza)}</span>` : ''}
+                    ${smlDet ? this.renderAlberoHTML(smlDet, livello + 1, visited) : ''}
+                </div>
+            </div>`;
             });
         }
 
@@ -447,11 +451,11 @@ const ProduzioneModule = {
         if (mpList.length > 0) {
             mpList.forEach(mp => {
                 html += `
-                <div style="padding-left:${indent}px" class="flex items-center gap-1.5 py-0.5">
-                    <span class="text-gray-300 text-xs">↳</span>
-                    <span class="text-xs text-gray-600">📦 ${mp.mpNome}</span>
-                    <span class="font-mono text-xs text-gray-500 ml-1">${mp.lotto}</span>
-                </div>`;
+            <div style="padding-left:${indent}px" class="flex items-center gap-1.5 py-0.5">
+                <span class="text-gray-300 text-xs">↳</span>
+                <span class="text-xs text-gray-600">📦 ${mp.mpNome}</span>
+                <span class="font-mono text-xs text-gray-500 ml-1">${mp.lotto}</span>
+            </div>`;
             });
         }
 
@@ -1352,21 +1356,25 @@ const ProduzioneModule = {
             (includiArchiviati || !p.archiviato)
         );
 
-        const buildAlbero = (prod, livello = 0) => {
+        const buildAlbero = (prod, livello = 0, visited = new Set()) => {
+            if (livello > 5) return '';
+            if (visited.has(prod.id)) return '';
+            visited.add(prod.id);
+
             let html = '';
             const indent = livello * 20;
 
             if (prod.lottiSML?.length > 0) {
                 prod.lottiSML.forEach(s => {
-                    const smlDet = this.produzioni.find(x => x.lotto === s.lotto);
+                    const smlDet = this.produzioni.find(x => x.lotto === s.lotto && x.id !== prod.id);
                     html += `<tr style="background:${livello === 0 ? '#fff7ed' : '#fefce8'}">
-                        <td colspan="5" style="padding:3px 8px 3px ${indent + 24}px;font-size:12px">
-                            <span style="color:#92400e;font-weight:600">↳ 🥩 ${s.smlNome}</span>
-                            <span style="font-family:monospace;color:#b45309;margin-left:8px">${s.lotto}</span>
-                            ${smlDet?.scadenza ? `<span style="color:#9ca3af;margin-left:8px;font-size:11px">scad. ${this.fmtData(smlDet.scadenza)}</span>` : ''}
-                        </td>
-                    </tr>`;
-                    if (smlDet) html += buildAlbero(smlDet, livello + 1);
+                <td colspan="5" style="padding:3px 8px 3px ${indent + 24}px;font-size:12px">
+                    <span style="color:#92400e;font-weight:600">↳ 🥩 ${s.smlNome}</span>
+                    <span style="font-family:monospace;color:#b45309;margin-left:8px">${s.lotto}</span>
+                    ${smlDet?.scadenza ? `<span style="color:#9ca3af;margin-left:8px;font-size:11px">scad. ${this.fmtData(smlDet.scadenza)}</span>` : ''}
+                </td>
+            </tr>`;
+                    if (smlDet) html += buildAlbero(smlDet, livello + 1, visited);
                 });
             }
 
@@ -1374,11 +1382,11 @@ const ProduzioneModule = {
             if (mpList.length > 0) {
                 mpList.forEach(mp => {
                     html += `<tr style="background:${livello === 0 ? '#fff7ed' : '#fefce8'}">
-                        <td colspan="5" style="padding:3px 8px 3px ${Math.min(indent + 24, 80)}px;font-size:12px">
-                            <span style="color:#92400e;font-weight:600">↳ 📦 ${mp.mpNome}</span>
-                            <span style="font-family:monospace;color:#b45309;margin-left:8px">${mp.lotto}</span>
-                        </td>
-                    </tr>`;
+                <td colspan="5" style="padding:3px 8px 3px ${Math.min(indent + 24, 80)}px;font-size:12px">
+                    <span style="color:#92400e;font-weight:600">↳ 📦 ${mp.mpNome}</span>
+                    <span style="font-family:monospace;color:#b45309;margin-left:8px">${mp.lotto}</span>
+                </td>
+            </tr>`;
                 });
             }
             return html;
