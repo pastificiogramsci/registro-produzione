@@ -616,7 +616,7 @@ const ProduzioneModule = {
                 }
 
                 // Controlla ricorsivamente ingredienti del SML
-                this.controllaSml(ricettaSml, ing.refNome, problemi, new Set([...visited]));
+                this.controllaSml(ricettaSml, ing.refNome, problemi, new Set([ricettaId, ing.refId]));
             }
         }
 
@@ -713,10 +713,6 @@ const ProduzioneModule = {
                 this.controllaSml(ricettaSub, ing.refNome, problemi, visited);
             }
         }
-    },
-
-    chiudiDisponibilita() {
-        document.getElementById('disponibilita-modal')?.remove();
     },
 
     chiudiDisponibilita() {
