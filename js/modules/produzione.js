@@ -359,8 +359,8 @@ const ProduzioneModule = {
                 ${p.quantita ? `<div class="text-xs text-gray-400 mt-0.5">
                     ${p.quantita} ${p.unita}
                     ${p.rimanente !== undefined && p.rimanente !== p.quantita
-                        ? `· <span class="text-orange-600 font-medium">rimasti: ${p.rimanente} ${p.unita}</span>`
-                        : ''}
+                    ? `· <span class="text-orange-600 font-medium">rimasti: ${p.rimanente} ${p.unita}</span>`
+                    : ''}
                 </div>` : ''}
 
                 <!-- Terza riga: lotti usati (troncata) -->
@@ -660,17 +660,21 @@ const ProduzioneModule = {
                 this.save();
                 Utils.showToast(`✅ Produzione aggiornata`, 'success');
             }
+        
         } else {
             const prod = this.addProduzione({
                 ricettaId, ricettaNome, data, scadenza,
                 quantita, unita, operatore, note, lottiMP, lottiSML
             });
             Utils.showToast(`✅ ${ricettaNome} · Lotto: ${prod.lotto}`, 'success');
+            this.closeModal();
+            this.render();
+            this.mostraPopupConsumo(prod);
+            return;
         }
 
         this.closeModal();
         this.render();
-        if (!editId) this.mostraPopupConsumo(prod);
     },
 
     mostraPopupConsumo(prod) {
