@@ -776,7 +776,8 @@
                     <div>
                         <label class="block text-sm font-semibold mb-1 text-gray-700">Quantità</label>
                         <input type="number" id="prd-form-quantita" step="0.01" placeholder="Es. 3"
-                            class="w-full px-4 py-2 border rounded-lg">
+                            class="w-full px-4 py-2 border rounded-lg"
+                            onchange="ProduzioneModule.verificaDisponibilita()">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold mb-1 text-gray-700">Unità</label>
