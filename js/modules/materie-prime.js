@@ -353,23 +353,35 @@ const MateriePrimeModule = {
     },
 
     // Usato dalla produzione: restituisce gli ultimi 2 lotti attivi per selezione
-    getLottiPerProduzione(mpId) {
+    getLottiPerProduzione(mpId, dataProduzione) {
         const oggi = new Date();
         oggi.setHours(0, 0, 0, 0);
         const attivi = this.getLottiAttivi(mpId);
         const validi = attivi.filter(l => !l.scadenza || new Date(l.scadenza) >= oggi);
         const scaduti = attivi.filter(l => l.scadenza && new Date(l.scadenza) < oggi);
 
-        // Includi anche gli archiviati recenti (ultimi 30 giorni)
-        const trentaGiorni = new Date();
-        trentaGiorni.setDate(trentaGiorni.getDate() - 30);
-        const archivatiRecenti = this.carichi.filter(c =>
-            c.mpId === mpId &&
-            c.archiviato &&
-            new Date(c.archiviatoAt || c.dataArrivo) >= trentaGiorni
-        );
+        // Include lotti archiviati utili per la data di produzione
+        let archivatiUtili = [];
+        if (dataProduzione) {
+            const dataP = new Date(dataProduzione);
+            archivatiUtili = this.carichi.filter(c =>
+                c.mpId === mpId &&
+                c.archiviato &&
+                new Date(c.archiviatoAt || c.scadenza || c.dataArrivo) >= dataP &&
+                (!c.scadenza || new Date(c.scadenza) >= dataP)
+            );
+        } else {
+            // Fallback: ultimi 30 giorni
+            const trentaGiorni = new Date();
+            trentaGiorni.setDate(trentaGiorni.getDate() - 30);
+            archivatiUtili = this.carichi.filter(c =>
+                c.mpId === mpId &&
+                c.archiviato &&
+                new Date(c.archiviatoAt || c.dataArrivo) >= trentaGiorni
+            );
+        }
 
-        return [...validi, ...scaduti, ...archivatiRecenti].slice(0, 5);
+        return [...validi, ...scaduti, ...archivatiUtili].slice(0, 5);
     },
 
     scaricoMP(mpId, quantitaDaScaricare) {

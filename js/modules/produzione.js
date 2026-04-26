@@ -766,7 +766,8 @@ const ProduzioneModule = {
             <div class="border rounded-lg p-3 bg-blue-50">
                 <p class="text-xs font-bold text-blue-700 uppercase mb-2">🏷 Lotti Materie Prime</p>
                 ${mpIng.map(ing => {
-            const lotti = MateriePrimeModule.getLottiPerProduzione(ing.refId);
+            const dataProd = document.getElementById('prd-form-data')?.value;
+            const lotti = MateriePrimeModule.getLottiPerProduzione(ing.refId, dataProd);
             const opzioni = lotti.length === 0
                 ? '<option value="">Nessun lotto disponibile</option>'
                 : lotti.map((l, i) =>
