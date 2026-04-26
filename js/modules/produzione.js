@@ -1114,8 +1114,8 @@ const ProduzioneModule = {
             Utils.showToast('⚠️ Inserisci una quantità valida', 'warning');
             return;
         }
-        if (qtaCongelare >= disponibile) {
-            Utils.showToast('⚠️ La quantità da congelare deve essere minore del disponibile', 'warning');
+        if (qtaCongelare > disponibile) {
+            Utils.showToast(`⚠️ Hai solo ${disponibile} ${p.unita} disponibili`, 'warning');
             return;
         }
 
