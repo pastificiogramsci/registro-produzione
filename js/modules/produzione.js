@@ -757,7 +757,7 @@ const ProduzioneModule = {
             if (!esiste) {
                 let qtaSuggerita = ing.quantita || 0;
                 if (ricetta.resa && prod.quantita && ing.quantita) {
-                    qtaSuggerita = (prod.quantita * ing.quantita) / ricetta.resa;
+                    qtaSuggerita = (parseFloat(prod.quantita) * parseFloat(ing.quantita)) / parseFloat(ricetta.resa);
                     qtaSuggerita = Math.round(qtaSuggerita * 10) / 10;
                 }
                 mancanti.push({ ...ing, qtaSuggerita });
@@ -770,50 +770,50 @@ const ProduzioneModule = {
         }
 
         let html = `
-        <div class="modal-overlay" id="sml-mancanti-modal" data-prod-id="${prod.id}">
-            <div class="modal-box">
-                <div class="bg-blue-700 text-white p-5 rounded-t-xl">
-                    <h3 class="text-xl font-bold">⚠️ Semilavorati non registrati</h3>
-                    <p class="text-sm opacity-80">Per produrre ${prod.ricettaNome} servono questi semilavorati</p>
-                </div>
-                <div class="p-5 space-y-3">`;
+    <div class="modal-overlay" id="sml-mancanti-modal" data-prod-id="${prod.id}">
+        <div class="modal-box">
+            <div class="bg-blue-700 text-white p-5 rounded-t-xl">
+                <h3 class="text-xl font-bold">⚠️ Semilavorati non registrati</h3>
+                <p class="text-sm opacity-80">Per produrre ${prod.ricettaNome} servono questi semilavorati</p>
+            </div>
+            <div class="p-5 space-y-3">`;
 
         mancanti.forEach(sml => {
             html += `
-            <div class="border rounded-lg p-3 bg-blue-50">
-                <div class="flex items-center gap-2 mb-2">
-                    <input type="checkbox" id="sml-add-${sml.refId}"
-                        class="w-4 h-4" checked>
-                    <label for="sml-add-${sml.refId}" class="font-semibold text-gray-800">
-                        ${sml.refNome}
-                    </label>
-                </div>
-                <div class="ml-6 flex gap-2 items-center">
-                    <input type="number" id="sml-qta-${sml.refId}"
-                        value="${sml.qtaSuggerita || ''}"
-                        step="0.1" min="0"
-                        placeholder="Quantità"
-                        class="w-28 px-3 py-1.5 border rounded-lg text-sm">
-                    <span class="text-sm text-gray-400">${sml.unita || 'kg'}</span>
-                    ${sml.qtaSuggerita ? `<span class="text-xs text-blue-500">(suggerito)</span>` : ''}
-                </div>
-            </div>`;
+        <div class="border rounded-lg p-3 bg-blue-50">
+            <div class="flex items-center gap-2 mb-2">
+                <input type="checkbox" id="sml-add-${sml.refId}"
+                    class="w-4 h-4" checked>
+                <label for="sml-add-${sml.refId}" class="font-semibold text-gray-800">
+                    ${sml.refNome}
+                </label>
+            </div>
+            <div class="ml-6 flex gap-2 items-center">
+                <input type="number" id="sml-qta-${sml.refId}"
+                    value="${sml.qtaSuggerita || ''}"
+                    step="0.1" min="0"
+                    placeholder="Quantità"
+                    class="w-28 px-3 py-1.5 border rounded-lg text-sm">
+                <span class="text-sm text-gray-400">${sml.unita || 'kg'}</span>
+                ${sml.qtaSuggerita ? `<span class="text-xs text-blue-500">(suggerito)</span>` : ''}
+            </div>
+        </div>`;
         });
 
         html += `
-                <div class="flex gap-3 pt-2">
-                    <button onclick="ProduzioneModule.chiudiSmlMancanti()"
-                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
-                        Salta
-                    </button>
-                    <button onclick="ProduzioneModule.aggiungiSmlMancanti('${prod.id}')"
-                        class="flex-1 bg-blue-700 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-800">
-                        ✓ Aggiungi
-                    </button>
-                </div>
-                </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="ProduzioneModule.chiudiSmlMancanti()"
+                    class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                    Salta
+                </button>
+                <button onclick="ProduzioneModule.aggiungiSmlMancanti('${prod.id}')"
+                    class="flex-1 bg-blue-700 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-800">
+                    ✓ Aggiungi
+                </button>
             </div>
-        </div>`;
+            </div>
+        </div>
+    </div>`;
 
         document.body.insertAdjacentHTML('beforeend', html);
     },
@@ -835,6 +835,8 @@ const ProduzioneModule = {
         const ricetta = RicetteModule.getRicetta(prod.ricettaId);
         const smlNecessari = ricetta?.ingredienti?.filter(i => i.tipo === 'sml') || [];
 
+        if (!prod.lottiSML) prod.lottiSML = [];
+
         smlNecessari.forEach(ing => {
             const checkbox = document.getElementById(`sml-add-${ing.refId}`);
             const qtaInput = document.getElementById(`sml-qta-${ing.refId}`);
@@ -843,7 +845,7 @@ const ProduzioneModule = {
             const ricettaSml = RicetteModule.getRicetta(ing.refId);
             if (!ricettaSml) return;
 
-            this.addProduzione({
+            const nuovaProd = this.addProduzione({
                 ricettaId: ing.refId,
                 ricettaNome: ing.refNome,
                 data: prod.data,
@@ -857,6 +859,14 @@ const ProduzioneModule = {
                 lottiMP: [],
                 lottiSML: [],
                 _autoCreato: true
+            });
+
+            // Linka il semilavorato alla produzione principale
+            prod.lottiSML.push({
+                smlId: ing.refId,
+                smlNome: ing.refNome,
+                smlRefId: nuovaProd.id,
+                lotto: nuovaProd.lotto
             });
         });
 
