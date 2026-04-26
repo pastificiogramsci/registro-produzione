@@ -910,6 +910,60 @@ const ProduzioneModule = {
             this.closeModal();
             this.render();
         } else {
+            // Controlla SML bloccanti PRIMA di salvare
+            const ricettaCheck = RicetteModule.getRicetta(ricettaId);
+            const problemiBloccanti = [];
+
+            if (ricettaCheck?.ingredienti) {
+                for (const ing of ricettaCheck.ingredienti) {
+                    if (ing.tipo === 'sml') {
+                        const ricettaSml = RicetteModule.getRicetta(ing.refId);
+                        const isBase = ricettaSml?.categoria === 'Semilavorato base';
+                        if (isBase) {
+                            const attiviSml = this.getAttiviPerRicetta(ing.refId);
+                            if (attiviSml.length === 0) {
+                                problemiBloccanti.push({
+                                    tipo: 'sml_bloccante',
+                                    nome: ing.refNome,
+                                    refId: ing.refId,
+                                    ricettaId: ing.refId
+                                });
+                            }
+                        }
+                        // Controlla ricorsivamente
+                        const subProblemi = [];
+                        this.controllaSml(ricettaSml, ing.refNome, subProblemi, new Set([ricettaId]));
+                        subProblemi.filter(p => p.tipo === 'sml_bloccante' || p.tipo === 'mp_no_lotti')
+                            .forEach(p => problemiBloccanti.push(p));
+                    } else if (ing.tipo === 'mp') {
+                        const mpObj = MateriePrimeModule.getMP(ing.refId);
+                        if (mpObj?.noTraccia) continue;
+                        const lottiAttivi = MateriePrimeModule.getLottiAttivi(ing.refId);
+                        if (lottiAttivi.length === 0) {
+                            problemiBloccanti.push({
+                                tipo: 'mp_no_lotti',
+                                nome: ing.refNome,
+                                refId: ing.refId
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (problemiBloccanti.length > 0) {
+                const primo = problemiBloccanti[0];
+                if (primo.tipo === 'mp_no_lotti') {
+                    Utils.showToast(`⛔ Aggiungi prima il carico: ${primo.nome.split(' (per')[0]}`, 'warning');
+                    this.closeModal();
+                    MateriePrimeModule.openModalCarico(primo.refId);
+                } else if (primo.tipo === 'sml_bloccante') {
+                    Utils.showToast(`⛔ Produci prima: ${primo.nome.split(' (per')[0]}`, 'warning');
+                    this.closeModal();
+                    this.openModalNewPerSml(primo.ricettaId);
+                }
+                return;
+            }
+
             const prod = this.addProduzione({
                 ricettaId, ricettaNome, data, scadenza,
                 quantita, unita, operatore, note, lottiMP, lottiSML, congelato
@@ -941,7 +995,6 @@ const ProduzioneModule = {
             Utils.showToast(`✅ ${ricettaNome} · Lotto: ${prod.lotto}`, 'success');
             this.closeModal();
             this.render();
-            // Se veniamo dal flusso scongela, non mostrare popup consumo
             if (!this._scongelaRef) {
                 this.verificaSemilavoratiNecessari(prod);
             } else {
@@ -955,55 +1008,55 @@ const ProduzioneModule = {
         if (smlUsati.length === 0) return;
 
         let html = `
-        <div class="modal-overlay" id="consumo-modal">
-            <div class="modal-box">
-                <div class="bg-orange-700 text-white p-5 rounded-t-xl">
-                    <h3 class="text-xl font-bold">🥩 Semilavorati utilizzati</h3>
-                    <p class="text-sm opacity-80">Quali semilavorati sono esauriti?</p>
-                </div>
-                <div class="p-5 space-y-3">`;
+    <div class="modal-overlay" id="consumo-modal">
+        <div class="modal-box">
+            <div class="bg-orange-700 text-white p-5 rounded-t-xl">
+                <h3 class="text-xl font-bold">🥩 Semilavorati utilizzati</h3>
+                <p class="text-sm opacity-80">Quali semilavorati sono esauriti?</p>
+            </div>
+            <div class="p-5 space-y-3">`;
 
         smlUsati.forEach(sml => {
             const prodSML = this.produzioni.find(p => p.id === sml.smlRefId);
             const rimanente = prodSML?.rimanente ?? prodSML?.quantita ?? '';
             html += `
-            <div class="border rounded-lg p-3 bg-orange-50">
-                <div class="flex items-center gap-2 mb-2">
-                    <input type="checkbox" id="consumo-${sml.smlRefId}"
-                        class="w-4 h-4" value="${sml.smlRefId}">
-                    <label for="consumo-${sml.smlRefId}" class="font-semibold text-gray-800">
-                        ${sml.smlNome} · <span class="font-mono text-orange-700">${sml.lotto}</span>
-                    </label>
-                </div>
-                <div class="ml-6">
-                    <label class="text-xs text-gray-500">Quantità rimanente (opz.)</label>
-                    <div class="flex gap-2 mt-1">
-                        <input type="number" id="rim-${sml.smlRefId}"
-                            step="0.1" min="0"
-                            placeholder="${rimanente || 'es. 2'}"
-                            class="w-32 px-3 py-1.5 border rounded-lg text-sm">
-                        <span class="text-sm text-gray-400 self-center">
-                            ${prodSML?.unita || 'kg'}
-                        </span>
-                    </div>
-                </div>
-            </div>`;
-        });
-
-        html += `
-                <div class="flex gap-3 pt-2">
-                    <button onclick="ProduzioneModule.chiudiConsumo()"
-                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
-                        Salta
-                    </button>
-                    <button onclick="ProduzioneModule.salvaConsumo('${prod.id}')"
-                        class="flex-1 bg-orange-700 text-white py-2.5 rounded-lg font-semibold hover:bg-orange-800">
-                        ✓ Conferma
-                    </button>
-                </div>
+        <div class="border rounded-lg p-3 bg-orange-50">
+            <div class="flex items-center gap-2 mb-2">
+                <input type="checkbox" id="consumo-${sml.smlRefId}"
+                    class="w-4 h-4" value="${sml.smlRefId}">
+                <label for="consumo-${sml.smlRefId}" class="font-semibold text-gray-800">
+                    ${sml.smlNome} · <span class="font-mono text-orange-700">${sml.lotto}</span>
+                </label>
+            </div>
+            <div class="ml-6">
+                <label class="text-xs text-gray-500">Quantità rimanente (opz.)</label>
+                <div class="flex gap-2 mt-1">
+                    <input type="number" id="rim-${sml.smlRefId}"
+                        step="0.1" min="0"
+                        placeholder="${rimanente || 'es. 2'}"
+                        class="w-32 px-3 py-1.5 border rounded-lg text-sm">
+                    <span class="text-sm text-gray-400 self-center">
+                        ${prodSML?.unita || 'kg'}
+                    </span>
                 </div>
             </div>
         </div>`;
+        });
+
+        html += `
+            <div class="flex gap-3 pt-2">
+                <button onclick="ProduzioneModule.chiudiConsumo()"
+                    class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-300">
+                    Salta
+                </button>
+                <button onclick="ProduzioneModule.salvaConsumo('${prod.id}')"
+                    class="flex-1 bg-orange-700 text-white py-2.5 rounded-lg font-semibold hover:bg-orange-800">
+                    ✓ Conferma
+                </button>
+            </div>
+            </div>
+        </div>
+    </div>`;
 
         document.body.insertAdjacentHTML('beforeend', html);
     },
@@ -1110,7 +1163,7 @@ const ProduzioneModule = {
 
         if (!prod.lottiSML) prod.lottiSML = [];
 
-        // Prima controlla se ci sono SML bloccanti per OGNI SML necessario
+        // Prima controlla se ci sono SML bloccanti
         const tuttiBloccanti = [];
         smlNecessari.forEach(ing => {
             const checkbox = document.getElementById(`sml-add-${ing.refId}`);
@@ -1124,15 +1177,15 @@ const ProduzioneModule = {
             tuttiBloccanti.push(...bloccanti);
         });
 
-        // Se ci sono bloccanti, mostra avviso e NON procedere
         if (tuttiBloccanti.length > 0) {
             document.getElementById('sml-mancanti-modal')?.remove();
-            const msg = tuttiBloccanti.map(b => b.nome.split(' (per')[0]).join(', ');
-            Utils.showToast(`⛔ Produci prima: ${msg}`, 'warning');
+            const primo = tuttiBloccanti[0];
+            Utils.showToast(`⛔ Produci prima: ${primo.nome.split(' (per')[0]}`, 'warning');
+            this.openModalNewPerSml(primo.ricettaId);
             return;
         }
 
-        // Se tutto ok, procedi con la creazione
+        // Procedi con la creazione
         smlNecessari.forEach(ing => {
             const checkbox = document.getElementById(`sml-add-${ing.refId}`);
             const qtaInput = document.getElementById(`sml-qta-${ing.refId}`);
@@ -1141,7 +1194,6 @@ const ProduzioneModule = {
             const ricettaSml = RicetteModule.getRicetta(ing.refId);
             if (!ricettaSml) return;
 
-            // Seleziona automaticamente lotti MP FIFO
             const lottiMPAuto = [];
             if (ricettaSml.ingredienti) {
                 ricettaSml.ingredienti.filter(i => i.tipo === 'mp').forEach(mpIng => {
@@ -1158,7 +1210,6 @@ const ProduzioneModule = {
                 });
             }
 
-            // Seleziona automaticamente lotti SML FIFO
             const lottiSMLAuto = [];
             if (ricettaSml.ingredienti) {
                 ricettaSml.ingredienti.filter(i => i.tipo === 'sml').forEach(smlIng => {
@@ -1196,7 +1247,6 @@ const ProduzioneModule = {
                 _autoCreato: true
             });
 
-            // Linka e archivia subito
             prod.lottiSML.push({
                 smlId: ing.refId,
                 smlNome: ing.refNome,
@@ -1236,7 +1286,6 @@ const ProduzioneModule = {
                 prodSML.archiviatoAt = new Date().toISOString();
                 prodSML.rimanente = 0;
                 delete prodSML._autoCreato;
-                // Se era congelato, registra data scongelo
                 if (prodSML.congelato) {
                     prodSML.dataScongelo = new Date().toLocaleDateString('en-CA');
                 }
