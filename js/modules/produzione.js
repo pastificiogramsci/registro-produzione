@@ -1994,6 +1994,29 @@ const ProduzioneModule = {
             resaUnita: prod.unita || 'kg'
         });
 
+        const nuovaRicetta = RicetteModule.addRicetta({
+            nome: prod.ricettaNome,
+            categoria: categoria,
+            semilavorato: categoria === 'Semilavorato base' ||
+                categoria === 'Semilavorato composto' ||
+                categoria === 'Sfoglia',
+            vendibile: true,
+            note: 'Creata da produzione ad hoc',
+            shelfLife: null,
+            resa: prod.quantita || null,
+            resaUnita: prod.unita || 'kg'
+        });
+
+        // Imposta resa manualmente perché addRicetta non la gestisce
+        if (prod.quantita) {
+            RicetteModule.updateRicetta(nuovaRicetta.id, {
+                nome: prod.ricettaNome,
+                categoria: categoria,
+                resa: prod.quantita,
+                resaUnita: prod.unita || 'kg'
+            });
+        }
+
         ingredienti.forEach(ing => {
             RicetteModule.addIngrediente(nuovaRicetta.id, ing);
         });
