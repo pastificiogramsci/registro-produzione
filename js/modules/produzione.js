@@ -1121,6 +1121,7 @@ const ProduzioneModule = {
                         ingPerRicetta.push({ smlId: id, smlNome: nome });
                     }
                 });
+                this._ingPerRicetta = ingPerRicetta;
                 this.mostraPopupSalvaRicetta(prod, ingPerRicetta);
             }
 
@@ -1897,62 +1898,63 @@ const ProduzioneModule = {
         const ingHtml = ingredienti.length === 0 ?
             '<p class="text-xs text-gray-400">Nessun ingrediente specificato</p>' :
             ingredienti.map(ing => `
-            <div class="flex gap-2 items-center mb-2">
-                <span class="flex-1 text-sm text-gray-700">${ing.mpNome || ing.smlNome}</span>
-                <input type="number" step="0.01" min="0"
-                    id="ric-qta-${ing.mpId || ing.smlId}"
-                    placeholder="Quantità"
-                    class="w-24 px-2 py-1 border rounded text-sm">
-                <select id="ric-unit-${ing.mpId || ing.smlId}"
-                    class="w-20 px-2 py-1 border rounded text-sm">
-                    <option value="kg">kg</option>
-                    <option value="g">g</option>
-                    <option value="pz">pz</option>
-                    <option value="lt">lt</option>
-                    <option value="ml">ml</option>
-                </select>
-            </div>`
+        <div class="flex gap-2 items-center mb-2">
+            <span class="flex-1 text-sm text-gray-700">${ing.mpNome || ing.smlNome}</span>
+            <input type="number" step="0.01" min="0"
+                id="ric-qta-${ing.mpId || ing.smlId}"
+                placeholder="Quantità"
+                class="w-24 px-2 py-1 border rounded text-sm">
+            <select id="ric-unit-${ing.mpId || ing.smlId}"
+                class="w-20 px-2 py-1 border rounded text-sm">
+                <option value="kg">kg</option>
+                <option value="g">g</option>
+                <option value="pz">pz</option>
+                <option value="lt">lt</option>
+                <option value="ml">ml</option>
+            </select>
+        </div>`
             ).join('');
 
         const html = `
-    <div class="modal-overlay" id="salva-ricetta-modal">
-        <div class="modal-box">
-            <div class="bg-amber-700 text-white p-5 rounded-t-xl">
-                <h3 class="text-xl font-bold">💾 Salva nel ricettario</h3>
-                <p class="text-sm opacity-80">${prod.ricettaNome}</p>
+<div class="modal-overlay" id="salva-ricetta-modal">
+    <div class="modal-box">
+        <div class="bg-amber-700 text-white p-5 rounded-t-xl">
+            <h3 class="text-xl font-bold">💾 Salva nel ricettario</h3>
+            <p class="text-sm opacity-80">${prod.ricettaNome}</p>
+        </div>
+        <div class="p-5 space-y-4">
+            <div>
+                <label class="block text-sm font-semibold mb-1 text-gray-700">Categoria</label>
+                <select id="ric-categoria-nuova" class="w-full px-3 py-2 border rounded-lg text-sm">
+                    ${catOptions}
+                </select>
             </div>
-            <div class="p-5 space-y-4">
-                <div>
-                    <label class="block text-sm font-semibold mb-1 text-gray-700">Categoria</label>
-                    <select id="ric-categoria-nuova" class="w-full px-3 py-2 border rounded-lg text-sm">
-                        ${catOptions}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold mb-1 text-gray-700">
-                        Quantità ingredienti <span class="text-gray-400 font-normal">(opzionale)</span>
-                    </label>
-                    ${ingHtml}
-                </div>
-                <div class="flex gap-3 pt-2">
-                    <button onclick="ProduzioneModule.chiudiSalvaRicetta('${prod.id}')"
-                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold">
-                        Salta
-                    </button>
-                    <button onclick="ProduzioneModule.confermaSalvaRicetta('${prod.id}')"
-                        class="flex-1 bg-amber-700 text-white py-2.5 rounded-lg font-semibold">
-                        💾 Salva ricetta
-                    </button>
-                </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1 text-gray-700">
+                    Quantità ingredienti <span class="text-gray-400 font-normal">(opzionale)</span>
+                </label>
+                ${ingHtml}
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="ProduzioneModule.chiudiSalvaRicetta('${prod.id}')"
+                    class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold">
+                    Salta
+                </button>
+                <button onclick="ProduzioneModule.confermaSalvaRicetta('${prod.id}')"
+                    class="flex-1 bg-amber-700 text-white py-2.5 rounded-lg font-semibold">
+                    💾 Salva ricetta
+                </button>
             </div>
         </div>
-    </div>`;
+    </div>
+</div>`;
 
         document.body.insertAdjacentHTML('beforeend', html);
     },
 
     chiudiSalvaRicetta(prodId) {
         document.getElementById('salva-ricetta-modal')?.remove();
+        this._ingPerRicetta = null;
     },
 
     confermaSalvaRicetta(prodId) {
@@ -1961,32 +1963,23 @@ const ProduzioneModule = {
 
         const categoria = document.getElementById('ric-categoria-nuova').value;
         const ingredienti = [];
+        const ingSorgente = this._ingPerRicetta || [];
 
-        [...(prod.lottiMP || [])].forEach(ing => {
-            const key = ing.mpId;
+        ingSorgente.forEach(ing => {
+            const tipo = ing.mpId ? 'mp' : 'sml';
+            const key = ing.mpId || ing.smlId;
             const qtaEl = document.getElementById(`ric-qta-${key}`);
             const unitEl = document.getElementById(`ric-unit-${key}`);
             ingredienti.push({
-                tipo: 'mp',
-                refId: ing.mpId,
-                refNome: ing.mpNome,
+                tipo,
+                refId: key,
+                refNome: ing.mpNome || ing.smlNome,
                 quantita: parseFloat(qtaEl?.value) || null,
                 unita: unitEl?.value || 'kg'
             });
         });
 
-        [...(prod.lottiSML || [])].forEach(ing => {
-            const key = ing.smlId;
-            const qtaEl = document.getElementById(`ric-qta-${key}`);
-            const unitEl = document.getElementById(`ric-unit-${key}`);
-            ingredienti.push({
-                tipo: 'sml',
-                refId: ing.smlId,
-                refNome: ing.smlNome,
-                quantita: parseFloat(qtaEl?.value) || null,
-                unita: unitEl?.value || 'kg'
-            });
-        });
+        this._ingPerRicetta = null;
 
         const nuovaRicetta = RicetteModule.addRicetta({
             nome: prod.ricettaNome,
