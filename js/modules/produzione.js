@@ -499,27 +499,18 @@ const ProduzioneModule = {
     // ==========================================
 
     openModalNew() {
-        const sel = document.getElementById('prd-form-ricetta');
-        sel.innerHTML = '<option value="">— Seleziona ricetta —</option>';
-
-        const ordine = ['Sfoglia', 'Semilavorato base', 'Semilavorato composto', 'Pasta fresca ripiena', 'Gastronomia'];
-        const tutte = RicetteModule.getAllRicette();
-
-        ordine.forEach(cat => {
-            const gruppo = tutte.filter(r => r.categoria === cat);
-            if (gruppo.length === 0) return;
-            const optgroup = document.createElement('optgroup');
-            optgroup.label = cat;
-            gruppo.forEach(r => {
-                const opt = document.createElement('option');
-                opt.value = r.id;
-                opt.dataset.nome = r.nome;
-                opt.dataset.shelf = r.shelfLife || '';
-                opt.textContent = r.nome + (r.shelfLife ? ` (${r.shelfLife}gg)` : '');
-                optgroup.appendChild(opt);
-            });
-            sel.appendChild(optgroup);
+        // Reset ricerca e filtri categoria
+        document.getElementById('prd-ricetta-search').value = '';
+        document.querySelectorAll('.prd-cat-btn').forEach(btn => {
+            if (btn.dataset.cat === '') {
+                btn.classList.remove('bg-gray-200', 'text-gray-700');
+                btn.classList.add('bg-green-700', 'text-white', 'active');
+            } else {
+                btn.classList.remove('bg-green-700', 'text-white', 'active');
+                btn.classList.add('bg-gray-200', 'text-gray-700');
+            }
         });
+        this._popolaSelectRicette('', '');
 
         const oggi = new Date().toLocaleDateString('en-CA');
         document.getElementById('prd-form-data').value = oggi;
@@ -533,6 +524,7 @@ const ProduzioneModule = {
         document.getElementById('prd-lotti-sml').innerHTML = '';
         document.getElementById('prd-form-congelato').checked = false;
         document.querySelector('#prd-modal h3').textContent = '🍳 Nuova Produzione';
+
         // Reset modalità ad hoc
         document.getElementById('prd-form-is-adhoc').value = '0';
         const selRic = document.getElementById('prd-form-ricetta');
@@ -597,11 +589,11 @@ const ProduzioneModule = {
         const list = document.getElementById('prd-adhoc-lotti-list');
         const idx = list.children.length;
 
-        const mpOptions = MateriePrimeModule.materiePrime
+        const mpOptions = (MateriePrimeModule.materiePrime || [])
             .map(mp => `<option value="mp|${mp.id}" data-nome="${mp.nome}">${mp.nome}</option>`)
             .join('');
 
-        const smlAttivi = this.produzioni.filter(p => this.isSemilavorato(p.ricettaId) && !p.archiviato);
+        const smlAttivi = (this.produzioni || []).filter(p => this.isSemilavorato(p.ricettaId) && !p.archiviato);
         const smlOptions = smlAttivi
             .map(s => `<option value="sml|${s.id}" data-nome="${s.ricettaNome}">${s.ricettaNome} · ${s.lotto}</option>`)
             .join('');
@@ -635,6 +627,60 @@ const ProduzioneModule = {
             const sml = this.produzioni.find(p => p.id === id);
             if (sml) lottoInput.value = sml.lotto;
         }
+    },
+
+    _popolaSelectRicette(catFiltro = '', search = '') {
+        const sel = document.getElementById('prd-form-ricetta');
+        sel.innerHTML = '<option value="">— Seleziona ricetta —</option>';
+
+        const ordine = ['Sfoglia', 'Semilavorato base', 'Semilavorato composto', 'Pasta fresca ripiena', 'Gastronomia'];
+        let tutte = RicetteModule.getAllRicette();
+
+        if (search) {
+            tutte = tutte.filter(r => r.nome.toLowerCase().includes(search.toLowerCase()));
+        }
+
+        const categorieDaMostrare = catFiltro === ''
+            ? ordine
+            : catFiltro === 'Semilavorato'
+                ? ['Semilavorato base', 'Semilavorato composto']
+                : [catFiltro];
+
+        categorieDaMostrare.forEach(cat => {
+            const gruppo = tutte.filter(r => r.categoria === cat);
+            if (gruppo.length === 0) return;
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = cat;
+            gruppo.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.id;
+                opt.dataset.nome = r.nome;
+                opt.dataset.shelf = r.shelfLife || '';
+                opt.textContent = r.nome + (r.shelfLife ? ` (${r.shelfLife}gg)` : '');
+                optgroup.appendChild(opt);
+            });
+            sel.appendChild(optgroup);
+        });
+    },
+
+    onRicercaRicetta() {
+        const search = document.getElementById('prd-ricetta-search').value;
+        const catAttiva = document.querySelector('.prd-cat-btn.active')?.dataset.cat || '';
+        this._popolaSelectRicette(catAttiva, search);
+    },
+
+    filtraCategoria(cat) {
+        document.querySelectorAll('.prd-cat-btn').forEach(btn => {
+            if (btn.dataset.cat === cat) {
+                btn.classList.remove('bg-gray-200', 'text-gray-700');
+                btn.classList.add('bg-green-700', 'text-white', 'active');
+            } else {
+                btn.classList.remove('bg-green-700', 'text-white', 'active');
+                btn.classList.add('bg-gray-200', 'text-gray-700');
+            }
+        });
+        const search = document.getElementById('prd-ricetta-search').value;
+        this._popolaSelectRicette(cat, search);
     },
 
     onRicettaChange() {
