@@ -1989,7 +1989,9 @@ const ProduzioneModule = {
                 categoria === 'Sfoglia',
             vendibile: true,
             note: 'Creata da produzione ad hoc',
-            shelfLife: null
+            shelfLife: null,
+            resa: prod.quantita || null,
+            resaUnita: prod.unita || 'kg'
         });
 
         ingredienti.forEach(ing => {
