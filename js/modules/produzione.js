@@ -1989,22 +1989,7 @@ const ProduzioneModule = {
                 categoria === 'Sfoglia',
             vendibile: true,
             note: 'Creata da produzione ad hoc',
-            shelfLife: null,
-            resa: prod.quantita || null,
-            resaUnita: prod.unita || 'kg'
-        });
-
-        const nuovaRicetta = RicetteModule.addRicetta({
-            nome: prod.ricettaNome,
-            categoria: categoria,
-            semilavorato: categoria === 'Semilavorato base' ||
-                categoria === 'Semilavorato composto' ||
-                categoria === 'Sfoglia',
-            vendibile: true,
-            note: 'Creata da produzione ad hoc',
-            shelfLife: null,
-            resa: prod.quantita || null,
-            resaUnita: prod.unita || 'kg'
+            shelfLife: null
         });
 
         // Imposta resa manualmente perché addRicetta non la gestisce
