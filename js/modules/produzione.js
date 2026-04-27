@@ -630,7 +630,8 @@ const ProduzioneModule = {
                 const mpObj = MateriePrimeModule.getMP(ing.refId);
                 if (mpObj?.noTraccia) continue;
 
-                const lottiAttivi = MateriePrimeModule.getLottiAttivi(ing.refId);
+                const dataProd = document.getElementById('prd-form-data')?.value;
+                const lottiAttivi = MateriePrimeModule.getLottiPerProduzione(ing.refId, dataProd);
                 if (lottiAttivi.length === 0) {
                     problemi.push({
                         tipo: 'mp_no_lotti',
