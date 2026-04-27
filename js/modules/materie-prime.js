@@ -380,7 +380,10 @@ const MateriePrimeModule = {
             );
         }
 
-        return [...validi, ...scaduti, ...archivatiUtili].slice(0, 5);
+        // Deduplica per id e ordina per dataArrivo
+        const tutti = [...validi, ...scaduti, ...archivatiUtili];
+        const deduplicati = tutti.filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i);
+        return deduplicati.sort((a, b) => new Date(a.dataArrivo) - new Date(b.dataArrivo));
     },
 
     scaricoMP(mpId, quantitaDaScaricare) {
