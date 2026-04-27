@@ -677,12 +677,12 @@ const ProduzioneModule = {
 
         problemi.forEach(p => {
             const actionBtn = p.tipo === 'mp_no_lotti'
-                ? `<button onclick="ProduzioneModule.chiudiDisponibilita();MateriePrimeModule.openModalCarico('${p.refId}')"
+                ? `<button onclick="ProduzioneModule.chiudiDisponibilita();ProduzioneModule.salvaStatoEApriCarico('${p.refId}')"
                 class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200 mt-1">
                 + Aggiungi carico
                 </button>`
                 : p.tipo === 'sml_bloccante'
-                    ? `<button onclick="ProduzioneModule.chiudiDisponibilita();ProduzioneModule.openModalNewPerSml('${p.ricettaId}')"
+                    ? `<button onclick="ProduzioneModule.chiudiDisponibilita();ProduzioneModule.salvaStatoEApriSml('${p.ricettaId}')"
                     class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 mt-1">
                     + Registra produzione prima
                     </button>`
@@ -759,6 +759,38 @@ const ProduzioneModule = {
         document.getElementById('disponibilita-modal')?.remove();
     },
 
+    salvaStatoEApriSml(ricettaId) {
+        const sel = document.getElementById('prd-form-ricetta');
+        this._pendingProduzione = {
+            ricettaId: sel.value,
+            ricettaNome: sel.options[sel.selectedIndex]?.dataset.nome || '',
+            data: document.getElementById('prd-form-data').value,
+            scadenza: document.getElementById('prd-form-scadenza').value,
+            quantita: document.getElementById('prd-form-quantita').value,
+            unita: document.getElementById('prd-form-unita').value,
+            operatore: document.getElementById('prd-form-operatore').value,
+            note: document.getElementById('prd-form-note').value,
+            congelato: document.getElementById('prd-form-congelato')?.checked || false
+        };
+        this.openModalNewPerSml(ricettaId);
+    },
+
+    salvaStatoEApriCarico(mpId) {
+        const sel = document.getElementById('prd-form-ricetta');
+        this._pendingProduzione = {
+            ricettaId: sel.value,
+            ricettaNome: sel.options[sel.selectedIndex]?.dataset.nome || '',
+            data: document.getElementById('prd-form-data').value,
+            scadenza: document.getElementById('prd-form-scadenza').value,
+            quantita: document.getElementById('prd-form-quantita').value,
+            unita: document.getElementById('prd-form-unita').value,
+            operatore: document.getElementById('prd-form-operatore').value,
+            note: document.getElementById('prd-form-note').value,
+            congelato: document.getElementById('prd-form-congelato')?.checked || false
+        };
+        this.closeModal();
+        MateriePrimeModule.openModalCarico(mpId);
+    },
     openModalNewPerSml(ricettaId) {
         this.openModalNew();
         // Preseleziona la ricetta
