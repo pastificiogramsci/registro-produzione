@@ -1045,14 +1045,35 @@ const ProduzioneModule = {
         });
 
         // Lotti ad hoc (modalità senza ricetta)
+        // Lotti ad hoc (modalità senza ricetta)
         if (isAdHoc) {
             document.querySelectorAll('#prd-adhoc-lotti-list [data-idx]').forEach(div => {
                 const mpSel = div.querySelector('.adhoc-mp-sel');
                 const lottoInput = div.querySelector('.adhoc-lotto-val');
-                const mpId = mpSel.value;
+                const rawVal = mpSel.value;
+                if (!rawVal) return;
+                const [tipo, id] = rawVal.split('|');
                 const mpNome = mpSel.options[mpSel.selectedIndex]?.dataset.nome || '';
-                const lotto = lottoInput.value.trim();
-                if (mpId && lotto) lottiMP.push({ mpId, mpNome, lottoId: '', lotto });
+                let lotto = lottoInput.value.trim();
+
+                // FIFO automatico se lotto non inserito
+                if (!lotto) {
+                    if (tipo === 'mp') {
+                        const lottiAttivi = MateriePrimeModule.getLottiAttivi(id);
+                        if (lottiAttivi.length > 0) lotto = lottiAttivi[0].lotto;
+                    } else if (tipo === 'sml') {
+                        const sml = this.produzioni.find(p => p.id === id);
+                        if (sml) lotto = sml.lotto;
+                    }
+                }
+
+                if (!lotto) return;
+
+                if (tipo === 'mp') {
+                    lottiMP.push({ mpId: id, mpNome, lottoId: '', lotto });
+                } else if (tipo === 'sml') {
+                    lottiSML.push({ smlId: id, smlNome: mpNome, smlRefId: id, lotto });
+                }
             });
         }
 
