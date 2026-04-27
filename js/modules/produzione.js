@@ -1079,32 +1079,6 @@ const ProduzioneModule = {
                 isAdHoc
             });
 
-            // Scarico automatico MP (solo se ricetta normale)
-            if (!isAdHoc) {
-                const ricetta = RicetteModule.getRicetta(ricettaId);
-                const mpIng = ricetta?.ingredienti?.filter(i => i.tipo === 'mp') || [];
-                const avvisi = [];
-
-                mpIng.forEach(ing => {
-                    if (!ing.quantita || !ricetta.resa) {
-                        avvisi.push(`${ing.refNome}: quantità non definita in ricetta`);
-                        return;
-                    }
-                    const qtaDaScaricare = (parseFloat(quantita) * parseFloat(ing.quantita)) / parseFloat(ricetta.resa);
-                    const risultato = MateriePrimeModule.scaricoMP(ing.refId, qtaDaScaricare);
-                    if (risultato.mancante > 0) {
-                        avvisi.push(`${ing.refNome}: scorta insufficiente (mancano ${risultato.mancante} ${ing.unita || 'kg'})`);
-                    }
-                });
-
-                MateriePrimeModule.save();
-                MateriePrimeModule.render();
-
-                if (avvisi.length > 0) {
-                    Utils.showToast(`⚠️ Scorte: ${avvisi[0]}`, 'warning');
-                }
-            }
-
             Utils.showToast(`✅ ${ricettaNome} · Lotto: ${prod.lotto}`, 'success');
 
             if (isAdHoc && document.getElementById('prd-adhoc-salva-ricetta')?.checked) {
@@ -1413,27 +1387,6 @@ const ProduzioneModule = {
             nuovaProd.archiviatoAt = new Date().toISOString();
             delete nuovaProd._autoCreato;
         });
-
-        // Scarico automatico SML dalla ricetta principale
-        const ricettaProd = RicetteModule.getRicetta(prod.ricettaId);
-        if (ricettaProd?.resa && prod.quantita) {
-            const smlIngProd = ricettaProd.ingredienti?.filter(i => i.tipo === 'sml') || [];
-            smlIngProd.forEach(ing => {
-                if (!ing.quantita) return;
-                const qtaDaScaricare = (parseFloat(prod.quantita) * parseFloat(ing.quantita)) / parseFloat(ricettaProd.resa);
-                const lottoProd = prod.lottiSML?.find(l => l.smlId === ing.refId);
-                if (!lottoProd) return;
-                const smlProd = this.produzioni.find(p => p.id === lottoProd.smlRefId);
-                if (!smlProd) return;
-                const disponibile = smlProd.rimanente ?? smlProd.quantita ?? 0;
-                const nuovoRimanente = Math.round((disponibile - qtaDaScaricare) * 100) / 100;
-                smlProd.rimanente = Math.max(0, nuovoRimanente);
-                if (nuovoRimanente <= 0) {
-                    smlProd.archiviato = true;
-                    smlProd.archiviatoAt = new Date().toISOString();
-                }
-            });
-        }
 
         this.save();
         this.render();
