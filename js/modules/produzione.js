@@ -787,6 +787,13 @@ const ProduzioneModule = {
             const lottoEl = document.getElementById('prd-form-lotto');
             if (lottoEl) lottoEl.value = this.genLotto(data);
         }
+        // Ricarica lotti MP e SML con la nuova data
+        const ricId = sel.value;
+        const ricetta = RicetteModule.getRicetta(ricId);
+        if (ricetta) {
+            this.renderLottiMP(ricetta);
+            this.renderLottiSML(ricetta);
+        }
     },
 
     onQuantitaChange() {
