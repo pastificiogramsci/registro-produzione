@@ -1108,8 +1108,20 @@ const ProduzioneModule = {
             Utils.showToast(`✅ ${ricettaNome} · Lotto: ${prod.lotto}`, 'success');
 
             if (isAdHoc && document.getElementById('prd-adhoc-salva-ricetta')?.checked) {
-                const tuttiIng = [...lottiMP, ...lottiSML];
-                this.mostraPopupSalvaRicetta(prod, tuttiIng);
+                const ingPerRicetta = [];
+                document.querySelectorAll('#prd-adhoc-lotti-list [data-idx]').forEach(div => {
+                    const mpSel = div.querySelector('.adhoc-mp-sel');
+                    const rawVal = mpSel.value;
+                    if (!rawVal) return;
+                    const [tipo, id] = rawVal.split('|');
+                    const nome = mpSel.options[mpSel.selectedIndex]?.dataset.nome || '';
+                    if (tipo === 'mp') {
+                        ingPerRicetta.push({ mpId: id, mpNome: nome });
+                    } else if (tipo === 'sml') {
+                        ingPerRicetta.push({ smlId: id, smlNome: nome });
+                    }
+                });
+                this.mostraPopupSalvaRicetta(prod, ingPerRicetta);
             }
 
             this.closeModal();
