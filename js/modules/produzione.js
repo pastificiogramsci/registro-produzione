@@ -596,32 +596,44 @@ const ProduzioneModule = {
     addAdHocLotto() {
         const list = document.getElementById('prd-adhoc-lotti-list');
         const idx = list.children.length;
-        const mpOptions = MateriePrimeModule.materie_prime
-            .map(mp => `<option value="${mp.id}" data-nome="${mp.nome}">${mp.nome}</option>`)
+
+        const mpOptions = MateriePrimeModule.materiePrime
+            .map(mp => `<option value="mp|${mp.id}" data-nome="${mp.nome}">${mp.nome}</option>`)
             .join('');
+
+        const smlAttivi = this.produzioni.filter(p => this.isSemilavorato(p.ricettaId) && !p.archiviato);
+        const smlOptions = smlAttivi
+            .map(s => `<option value="sml|${s.id}" data-nome="${s.ricettaNome}">${s.ricettaNome} · ${s.lotto}</option>`)
+            .join('');
+
         const div = document.createElement('div');
         div.className = 'flex gap-2 mb-2 items-center';
         div.dataset.idx = idx;
         div.innerHTML = `
-        <select class="flex-1 px-2 py-1 border rounded text-sm adhoc-mp-sel"
-            onchange="ProduzioneModule.onAdHocMPChange(this)">
-            <option value="">— Materia prima —</option>
-            ${mpOptions}
-        </select>
-        <input type="text" placeholder="Lotto"
-            class="w-28 px-2 py-1 border rounded text-sm adhoc-lotto-val">
-        <button type="button" onclick="this.parentElement.remove()"
-            class="text-red-400 hover:text-red-600 text-lg leading-none">×</button>`;
+            <select class="flex-1 px-2 py-1 border rounded text-sm adhoc-mp-sel"
+                onchange="ProduzioneModule.onAdHocMPChange(this)">
+                <option value="">— Ingrediente —</option>
+                ${mpOptions.length ? `<optgroup label="Materie Prime">${mpOptions}</optgroup>` : ''}
+                ${smlOptions.length ? `<optgroup label="Semilavorati">${smlOptions}</optgroup>` : ''}
+            </select>
+            <input type="text" placeholder="Lotto"
+                class="w-28 px-2 py-1 border rounded text-sm adhoc-lotto-val">
+            <button type="button" onclick="this.parentElement.remove()"
+                class="text-red-400 hover:text-red-600 text-lg leading-none">×</button>`;
         list.appendChild(div);
     },
 
     onAdHocMPChange(sel) {
-        const mpId = sel.value;
-        if (!mpId) return;
+        const val = sel.value;
+        if (!val) return;
+        const [tipo, id] = val.split('|');
         const lottoInput = sel.parentElement.querySelector('.adhoc-lotto-val');
-        const lottiAttivi = MateriePrimeModule.getLottiAttivi(mpId);
-        if (lottiAttivi.length > 0) {
-            lottoInput.value = lottiAttivi[0].lotto;
+        if (tipo === 'mp') {
+            const lottiAttivi = MateriePrimeModule.getLottiAttivi(id);
+            if (lottiAttivi.length > 0) lottoInput.value = lottiAttivi[0].lotto;
+        } else if (tipo === 'sml') {
+            const sml = this.produzioni.find(p => p.id === id);
+            if (sml) lottoInput.value = sml.lotto;
         }
     },
 
