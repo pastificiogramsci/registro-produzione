@@ -1922,39 +1922,44 @@ const ProduzioneModule = {
             .map(mp => `<option value="mp|${mp.id}" data-nome="${mp.nome}">${mp.nome}</option>`)
             .join('');
 
-        const smlAttivi = (this.produzioni || []).filter(p => {
-            if (p.archiviato) return false;
-            const ricetta = RicetteModule.getRicetta(p.ricettaId);
-            return ricetta?.semilavorato === true || this.isSemilavorato(p.ricettaId);
-        });
-        const smlOptions = smlAttivi
-            .map(s => `<option value="sml|${s.id}" data-nome="${s.ricettaNome}">${s.ricettaNome} · ${s.lotto}</option>`)
+        const smlRicette = RicetteModule.getAllRicette().filter(r =>
+            r.semilavorato === true ||
+            r.categoria === 'Semilavorato base' ||
+            r.categoria === 'Semilavorato composto' ||
+            r.categoria === 'Sfoglia'
+        );
+        const smlOptions = smlRicette
+            .map(r => `<option value="sml|${r.id}" data-nome="${r.nome}">${r.nome}</option>`)
             .join('');
 
         const div = document.createElement('div');
         div.className = 'flex gap-2 mb-2 items-center';
         div.dataset.idx = idx;
         div.innerHTML = `
-            <select class="flex-1 px-2 py-1 border rounded text-sm adhoc-mp-sel"
-                onchange="ProduzioneModule.onAdHocMPChange(this)">
-                <option value="">— Ingrediente —</option>
-                ${mpOptions.length ? `<optgroup label="Materie Prime">${mpOptions}</optgroup>` : ''}
-                ${smlOptions.length ? `<optgroup label="Semilavorati">${smlOptions}</optgroup>` : ''}
-            </select>
-            <input type="text" placeholder="Lotto"
-                class="w-28 px-2 py-1 border rounded text-sm adhoc-lotto-val">
-            <button type="button" onclick="this.parentElement.remove()"
-                class="text-red-400 hover:text-red-600 text-lg leading-none">×</button>`;
+        <select class="flex-1 px-2 py-1 border rounded text-sm adhoc-mp-sel"
+            onchange="ProduzioneModule.onAdHocMPChange(this)">
+            <option value="">— Ingrediente —</option>
+            ${mpOptions.length ? `<optgroup label="Materie Prime">${mpOptions}</optgroup>` : ''}
+            ${smlOptions.length ? `<optgroup label="Semilavorati">${smlOptions}</optgroup>` : ''}
+        </select>
+        <input type="text" placeholder="Lotto"
+            class="w-28 px-2 py-1 border rounded text-sm adhoc-lotto-val">
+        <button type="button" onclick="this.parentElement.remove()"
+            class="text-red-400 hover:text-red-600 text-lg leading-none">×</button>`;
         list.appendChild(div);
     },
 
     onAdHocMPChange(sel) {
-        const mpId = sel.value;
-        if (!mpId) return;
-        const lottiInput = sel.parentElement.querySelector('.adhoc-lotto-val');
-        const lottiAttivi = MateriePrimeModule.getLottiAttivi(mpId);
-        if (lottiAttivi.length > 0) {
-            lottiInput.value = lottiAttivi[0].lotto; // precompila con FIFO
+        const val = sel.value;
+        if (!val) return;
+        const [tipo, id] = val.split('|');
+        const lottoInput = sel.parentElement.querySelector('.adhoc-lotto-val');
+        if (tipo === 'mp') {
+            const lottiAttivi = MateriePrimeModule.getLottiAttivi(id);
+            if (lottiAttivi.length > 0) lottoInput.value = lottiAttivi[0].lotto;
+        } else if (tipo === 'sml') {
+            const attiviPerRicetta = this.getAttiviPerRicetta(id);
+            if (attiviPerRicetta.length > 0) lottoInput.value = attiviPerRicetta[0].lotto;
         }
     },
 
