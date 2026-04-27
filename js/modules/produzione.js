@@ -788,6 +788,13 @@ const ProduzioneModule = {
         }
     },
 
+    onQuantitaChange() {
+        clearTimeout(this._verificaTimeout);
+        this._verificaTimeout = setTimeout(() => {
+            this.verificaDisponibilita();
+        }, 800);
+    },
+
     renderLottiMP(ricetta) {
         const container = document.getElementById('prd-lotti-mp');
         const mpIng = ricetta.ingredienti.filter(i => i.tipo === 'mp');
