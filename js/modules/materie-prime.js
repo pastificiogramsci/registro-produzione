@@ -367,7 +367,6 @@ const MateriePrimeModule = {
             archivatiUtili = this.carichi.filter(c =>
                 c.mpId === mpId &&
                 c.archiviato &&
-                new Date(c.archiviatoAt || c.scadenza || c.dataArrivo) >= dataP &&
                 (!c.scadenza || new Date(c.scadenza) >= dataP)
             );
         } else {
