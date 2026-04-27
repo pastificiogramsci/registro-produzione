@@ -762,6 +762,23 @@
                     </select>
                 </div>
 
+                <button type="button" id="prd-adhoc-toggle" onclick="ProduzioneModule.toggleAdHoc()"
+                    class="text-xs text-blue-600 underline mt-1 block">
+                    ✏️ Produzione senza ricetta (gastronomia ad hoc)
+                </button>
+
+                <div id="prd-adhoc-fields" class="hidden mt-2 space-y-2">
+                    <input type="text" id="prd-form-nome-adhoc"
+                        placeholder="Nome del piatto (es. Caponata, Polpette...)"
+                        class="w-full px-4 py-2 border border-amber-400 rounded-lg text-sm bg-amber-50">
+                    <p class="text-xs text-amber-700">
+                        ℹ️ Modalità ad hoc — categoria Gastronomia — nessun lotto automatico
+                    </p>
+                    <div id="prd-adhoc-lotti" class="space-y-2"></div>
+                </div>
+
+                <input type="hidden" id="prd-form-is-adhoc" value="0">
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-sm font-semibold mb-1 text-gray-700">

@@ -116,14 +116,15 @@ const ProduzioneModule = {
 
     addProduzione(dati) {
         const lotto = this.genLotto(dati.data);
-        const tipo = this.getTipo(dati.ricettaId);
-        const ricetta = RicetteModule.getRicetta(dati.ricettaId);
+        const tipo = dati.isAdHoc ? 'prodotto' : this.getTipo(dati.ricettaId);
+        const ricetta = dati.isAdHoc ? null : RicetteModule.getRicetta(dati.ricettaId);
         const prod = {
             id: this.newId(),
             tipo: tipo,
-            categoria: ricetta?.categoria || '',
+            categoria: dati.isAdHoc ? 'Gastronomia' : (ricetta?.categoria || ''),
             ricettaId: dati.ricettaId,
             ricettaNome: dati.ricettaNome,
+            isAdHoc: dati.isAdHoc || false,
             lotto: lotto,
             data: dati.data || new Date().toISOString().split('T')[0],
             scadenza: dati.scadenza || '',
@@ -532,12 +533,96 @@ const ProduzioneModule = {
         document.getElementById('prd-lotti-sml').innerHTML = '';
         document.getElementById('prd-form-congelato').checked = false;
         document.querySelector('#prd-modal h3').textContent = '🍳 Nuova Produzione';
+        // Reset modalità ad hoc
+        document.getElementById('prd-form-is-adhoc').value = '0';
+        const selRic = document.getElementById('prd-form-ricetta');
+        selRic.disabled = false;
+        document.getElementById('prd-adhoc-fields').classList.add('hidden');
+        document.getElementById('prd-form-nome-adhoc').value = '';
+        document.getElementById('prd-adhoc-toggle').textContent = '✏️ Produzione senza ricetta (gastronomia ad hoc)';
+        document.getElementById('prd-adhoc-toggle').className = 'text-xs text-blue-600 underline mt-1 block';
         document.getElementById('prd-modal').classList.remove('hidden');
     },
 
     closeModal() {
         document.getElementById('prd-modal').classList.add('hidden');
         this._scongelaRef = null;
+    },
+
+    toggleAdHoc() {
+        const isAdHoc = document.getElementById('prd-form-is-adhoc').value === '1';
+        const sel = document.getElementById('prd-form-ricetta');
+        const adhocFields = document.getElementById('prd-adhoc-fields');
+        const toggle = document.getElementById('prd-adhoc-toggle');
+        const lottiMP = document.getElementById('prd-lotti-mp');
+        const lottiSML = document.getElementById('prd-lotti-sml');
+
+        if (!isAdHoc) {
+            document.getElementById('prd-form-is-adhoc').value = '1';
+            sel.disabled = true;
+            sel.value = '';
+            adhocFields.classList.remove('hidden');
+            toggle.textContent = '← Usa una ricetta esistente';
+            toggle.classList.replace('text-blue-600', 'text-gray-500');
+            lottiMP.innerHTML = '';
+            lottiSML.innerHTML = '';
+            this.renderAdHocLotti();
+        } else {
+            document.getElementById('prd-form-is-adhoc').value = '0';
+            sel.disabled = false;
+            adhocFields.classList.add('hidden');
+            document.getElementById('prd-form-nome-adhoc').value = '';
+            document.getElementById('prd-adhoc-lotti').innerHTML = '';
+            toggle.textContent = '✏️ Produzione senza ricetta (gastronomia ad hoc)';
+            toggle.classList.replace('text-gray-500', 'text-blue-600');
+        }
+    },
+
+    renderAdHocLotti() {
+        const container = document.getElementById('prd-adhoc-lotti');
+        container.innerHTML = `
+        <div class="border rounded-lg p-3 bg-amber-50">
+            <p class="text-xs font-bold text-amber-700 uppercase mb-2">
+                🏷 Ingredienti usati (opzionale)
+            </p>
+            <div id="prd-adhoc-lotti-list"></div>
+            <button type="button" onclick="ProduzioneModule.addAdHocLotto()"
+                class="mt-2 text-xs text-amber-700 underline">
+                + Aggiungi ingrediente
+            </button>
+        </div>`;
+    },
+
+    addAdHocLotto() {
+        const list = document.getElementById('prd-adhoc-lotti-list');
+        const idx = list.children.length;
+        const mpOptions = MateriePrimeModule.materie_prime
+            .map(mp => `<option value="${mp.id}" data-nome="${mp.nome}">${mp.nome}</option>`)
+            .join('');
+        const div = document.createElement('div');
+        div.className = 'flex gap-2 mb-2 items-center';
+        div.dataset.idx = idx;
+        div.innerHTML = `
+        <select class="flex-1 px-2 py-1 border rounded text-sm adhoc-mp-sel"
+            onchange="ProduzioneModule.onAdHocMPChange(this)">
+            <option value="">— Materia prima —</option>
+            ${mpOptions}
+        </select>
+        <input type="text" placeholder="Lotto"
+            class="w-28 px-2 py-1 border rounded text-sm adhoc-lotto-val">
+        <button type="button" onclick="this.parentElement.remove()"
+            class="text-red-400 hover:text-red-600 text-lg leading-none">×</button>`;
+        list.appendChild(div);
+    },
+
+    onAdHocMPChange(sel) {
+        const mpId = sel.value;
+        if (!mpId) return;
+        const lottoInput = sel.parentElement.querySelector('.adhoc-lotto-val');
+        const lottiAttivi = MateriePrimeModule.getLottiAttivi(mpId);
+        if (lottiAttivi.length > 0) {
+            lottoInput.value = lottiAttivi[0].lotto;
+        }
     },
 
     onRicettaChange() {
@@ -846,9 +931,21 @@ const ProduzioneModule = {
     },
 
     saveProduzione() {
+        const isAdHoc = document.getElementById('prd-form-is-adhoc').value === '1';
         const sel = document.getElementById('prd-form-ricetta');
-        const ricettaId = sel.value;
-        const ricettaNome = sel.options[sel.selectedIndex]?.dataset.nome || '';
+
+        let ricettaId = '';
+        let ricettaNome = '';
+
+        if (isAdHoc) {
+            ricettaNome = document.getElementById('prd-form-nome-adhoc').value.trim();
+            if (!ricettaNome) { Utils.showToast('⚠️ Inserisci il nome del piatto', 'warning'); return; }
+        } else {
+            ricettaId = sel.value;
+            ricettaNome = sel.options[sel.selectedIndex]?.dataset.nome || '';
+            if (!ricettaId) { Utils.showToast('⚠️ Seleziona una ricetta', 'warning'); return; }
+        }
+
         const data = document.getElementById('prd-form-data').value;
         const scadenza = document.getElementById('prd-form-scadenza').value;
         const quantita = document.getElementById('prd-form-quantita').value;
@@ -857,7 +954,6 @@ const ProduzioneModule = {
         const note = document.getElementById('prd-form-note').value;
         const congelato = document.getElementById('prd-form-congelato')?.checked || false;
 
-        if (!ricettaId) { Utils.showToast('⚠️ Seleziona una ricetta', 'warning'); return; }
         if (!data) { Utils.showToast('⚠️ La data è obbligatoria', 'warning'); return; }
 
         const lottiMP = [];
@@ -890,6 +986,18 @@ const ProduzioneModule = {
             if (lotto) lottiSML.push({ smlId, smlNome, smlRefId, lotto });
         });
 
+        // Lotti ad hoc (modalità senza ricetta)
+        if (isAdHoc) {
+            document.querySelectorAll('#prd-adhoc-lotti-list [data-idx]').forEach(div => {
+                const mpSel = div.querySelector('.adhoc-mp-sel');
+                const lottoInput = div.querySelector('.adhoc-lotto-val');
+                const mpId = mpSel.value;
+                const mpNome = mpSel.options[mpSel.selectedIndex]?.dataset.nome || '';
+                const lotto = lottoInput.value.trim();
+                if (mpId && lotto) lottiMP.push({ mpId, mpNome, lottoId: '', lotto });
+            });
+        }
+
         const editId = document.getElementById('prd-form-id').value;
 
         if (editId) {
@@ -897,8 +1005,9 @@ const ProduzioneModule = {
             if (p) {
                 p.ricettaId = ricettaId;
                 p.ricettaNome = ricettaNome;
-                p.tipo = this.getTipo(ricettaId);
-                p.categoria = RicetteModule.getRicetta(ricettaId)?.categoria || '';
+                p.isAdHoc = isAdHoc;
+                p.tipo = isAdHoc ? 'prodotto' : this.getTipo(ricettaId);
+                p.categoria = isAdHoc ? 'Gastronomia' : (RicetteModule.getRicetta(ricettaId)?.categoria || '');
                 p.data = data;
                 p.scadenza = scadenza;
                 p.quantita = parseFloat(quantita) || 0;
@@ -915,89 +1024,95 @@ const ProduzioneModule = {
             this.closeModal();
             this.render();
         } else {
-            // Controlla SML bloccanti PRIMA di salvare
-            const ricettaCheck = RicetteModule.getRicetta(ricettaId);
-            const problemiBloccanti = [];
+            if (!isAdHoc) {
+                // Controlla SML bloccanti PRIMA di salvare
+                const ricettaCheck = RicetteModule.getRicetta(ricettaId);
+                const problemiBloccanti = [];
 
-            if (ricettaCheck?.ingredienti) {
-                for (const ing of ricettaCheck.ingredienti) {
-                    if (ing.tipo === 'sml') {
-                        const ricettaSml = RicetteModule.getRicetta(ing.refId);
-                        const isBase = ricettaSml?.categoria === 'Semilavorato base';
-                        if (isBase) {
-                            const attiviSml = this.getAttiviPerRicetta(ing.refId);
-                            if (attiviSml.length === 0) {
+                if (ricettaCheck?.ingredienti) {
+                    for (const ing of ricettaCheck.ingredienti) {
+                        if (ing.tipo === 'sml') {
+                            const ricettaSml = RicetteModule.getRicetta(ing.refId);
+                            const isBase = ricettaSml?.categoria === 'Semilavorato base';
+                            if (isBase) {
+                                const attiviSml = this.getAttiviPerRicetta(ing.refId);
+                                if (attiviSml.length === 0) {
+                                    problemiBloccanti.push({
+                                        tipo: 'sml_bloccante',
+                                        nome: ing.refNome,
+                                        refId: ing.refId,
+                                        ricettaId: ing.refId
+                                    });
+                                }
+                            }
+                            const subProblemi = [];
+                            this.controllaSml(ricettaSml, ing.refNome, subProblemi, new Set([ricettaId]), data);
+                            subProblemi.filter(p => p.tipo === 'sml_bloccante' || p.tipo === 'mp_no_lotti')
+                                .forEach(p => problemiBloccanti.push(p));
+                        } else if (ing.tipo === 'mp') {
+                            const mpObj = MateriePrimeModule.getMP(ing.refId);
+                            if (mpObj?.noTraccia) continue;
+                            const lottiDisponibili = MateriePrimeModule.getLottiPerProduzione(ing.refId, data);
+                            if (lottiDisponibili.length === 0) {
                                 problemiBloccanti.push({
-                                    tipo: 'sml_bloccante',
+                                    tipo: 'mp_no_lotti',
                                     nome: ing.refNome,
-                                    refId: ing.refId,
-                                    ricettaId: ing.refId
+                                    refId: ing.refId
                                 });
                             }
                         }
-                        const subProblemi = [];
-                        this.controllaSml(ricettaSml, ing.refNome, subProblemi, new Set([ricettaId]), data);
-                        subProblemi.filter(p => p.tipo === 'sml_bloccante' || p.tipo === 'mp_no_lotti')
-                            .forEach(p => problemiBloccanti.push(p));
-                    } else if (ing.tipo === 'mp') {
-                        const mpObj = MateriePrimeModule.getMP(ing.refId);
-                        if (mpObj?.noTraccia) continue;
-                        const lottiDisponibili = MateriePrimeModule.getLottiPerProduzione(ing.refId, data);
-                        if (lottiDisponibili.length === 0) {
-                            problemiBloccanti.push({
-                                tipo: 'mp_no_lotti',
-                                nome: ing.refNome,
-                                refId: ing.refId
-                            });
-                        }
                     }
                 }
-            }
 
-            if (problemiBloccanti.length > 0) {
-                const primo = problemiBloccanti[0];
-                if (primo.tipo === 'mp_no_lotti') {
-                    Utils.showToast(`⛔ Aggiungi prima il carico: ${primo.nome.split(' (per')[0]}`, 'warning');
-                    this._pendingProduzione = { ricettaId, data, scadenza, quantita, unita, operatore, note, congelato };
-                    this.closeModal();
-                    MateriePrimeModule.openModalCarico(primo.refId);
-                } else if (primo.tipo === 'sml_bloccante') {
-                    Utils.showToast(`⛔ Produci prima: ${primo.nome.split(' (per')[0]}`, 'warning');
-                    this._pendingProduzione = { ricettaId, data, scadenza, quantita, unita, operatore, note, congelato };
-                    this.closeModal();
-                    this.openModalNewPerSml(primo.ricettaId);
+                if (problemiBloccanti.length > 0) {
+                    const primo = problemiBloccanti[0];
+                    if (primo.tipo === 'mp_no_lotti') {
+                        Utils.showToast(`⛔ Aggiungi prima il carico: ${primo.nome.split(' (per')[0]}`, 'warning');
+                        this._pendingProduzione = { ricettaId, data, scadenza, quantita, unita, operatore, note, congelato };
+                        this.closeModal();
+                        MateriePrimeModule.openModalCarico(primo.refId);
+                    } else if (primo.tipo === 'sml_bloccante') {
+                        Utils.showToast(`⛔ Produci prima: ${primo.nome.split(' (per')[0]}`, 'warning');
+                        this._pendingProduzione = { ricettaId, data, scadenza, quantita, unita, operatore, note, congelato };
+                        this.closeModal();
+                        this.openModalNewPerSml(primo.ricettaId);
+                    }
+                    return;
                 }
-                return;
             }
 
             const prod = this.addProduzione({
                 ricettaId, ricettaNome, data, scadenza,
-                quantita, unita, operatore, note, lottiMP, lottiSML, congelato
+                quantita, unita, operatore, note, lottiMP, lottiSML, congelato,
+                isAdHoc
             });
 
-            // Scarico automatico MP
-            const ricetta = RicetteModule.getRicetta(ricettaId);
-            const mpIng = ricetta?.ingredienti?.filter(i => i.tipo === 'mp') || [];
-            const avvisi = [];
+            // Scarico automatico MP (solo se ricetta normale)
+            if (!isAdHoc) {
+                const ricetta = RicetteModule.getRicetta(ricettaId);
+                const mpIng = ricetta?.ingredienti?.filter(i => i.tipo === 'mp') || [];
+                const avvisi = [];
 
-            mpIng.forEach(ing => {
-                if (!ing.quantita || !ricetta.resa) {
-                    avvisi.push(`${ing.refNome}: quantità non definita in ricetta`);
-                    return;
+                mpIng.forEach(ing => {
+                    if (!ing.quantita || !ricetta.resa) {
+                        avvisi.push(`${ing.refNome}: quantità non definita in ricetta`);
+                        return;
+                    }
+                    const qtaDaScaricare = (parseFloat(quantita) * parseFloat(ing.quantita)) / parseFloat(ricetta.resa);
+                    const risultato = MateriePrimeModule.scaricoMP(ing.refId, qtaDaScaricare);
+                    if (risultato.mancante > 0) {
+                        avvisi.push(`${ing.refNome}: scorta insufficiente (mancano ${risultato.mancante} ${ing.unita || 'kg'})`);
+                    }
+                });
+
+                MateriePrimeModule.save();
+                MateriePrimeModule.render();
+
+                if (avvisi.length > 0) {
+                    Utils.showToast(`⚠️ Scorte: ${avvisi[0]}`, 'warning');
                 }
-                const qtaDaScaricare = (parseFloat(quantita) * parseFloat(ing.quantita)) / parseFloat(ricetta.resa);
-                const risultato = MateriePrimeModule.scaricoMP(ing.refId, qtaDaScaricare);
-                if (risultato.mancante > 0) {
-                    avvisi.push(`${ing.refNome}: scorta insufficiente (mancano ${risultato.mancante} ${ing.unita || 'kg'})`);
-                }
-            });
-
-            MateriePrimeModule.save();
-            MateriePrimeModule.render();
-
-            if (avvisi.length > 0) {
-                Utils.showToast(`⚠️ Scorte: ${avvisi[0]}`, 'warning');
             }
+
             Utils.showToast(`✅ ${ricettaNome} · Lotto: ${prod.lotto}`, 'success');
             this.closeModal();
             this.render();
@@ -1666,6 +1781,84 @@ const ProduzioneModule = {
 
     closeModalTracciabilita() {
         document.getElementById('traccia-modal').classList.add('hidden');
+    },
+
+    toggleAdHoc() {
+        const isAdHoc = document.getElementById('prd-form-is-adhoc').value === '1';
+        const sel = document.getElementById('prd-form-ricetta');
+        const adhocFields = document.getElementById('prd-adhoc-fields');
+        const toggle = document.getElementById('prd-adhoc-toggle');
+        const lottiMP = document.getElementById('prd-lotti-mp');
+        const lottiSML = document.getElementById('prd-lotti-sml');
+
+        if (!isAdHoc) {
+            // Attiva modalità ad hoc
+            document.getElementById('prd-form-is-adhoc').value = '1';
+            sel.disabled = true;
+            sel.value = '';
+            adhocFields.classList.remove('hidden');
+            toggle.textContent = '← Usa una ricetta esistente';
+            toggle.classList.replace('text-blue-600', 'text-gray-500');
+            lottiMP.innerHTML = '';
+            lottiSML.innerHTML = '';
+            this.renderAdHocLotti();
+        } else {
+            // Torna al ricettario
+            document.getElementById('prd-form-is-adhoc').value = '0';
+            sel.disabled = false;
+            adhocFields.classList.add('hidden');
+            document.getElementById('prd-form-nome-adhoc').value = '';
+            document.getElementById('prd-adhoc-lotti').innerHTML = '';
+            toggle.textContent = '✏️ Produzione senza ricetta (gastronomia ad hoc)';
+            toggle.classList.replace('text-gray-500', 'text-blue-600');
+        }
+    },
+
+    renderAdHocLotti() {
+        // Permette di aggiungere ingredienti/lotti manualmente
+        const container = document.getElementById('prd-adhoc-lotti');
+        container.innerHTML = `
+        <div class="border rounded-lg p-3 bg-amber-50">
+            <p class="text-xs font-bold text-amber-700 uppercase mb-2">
+                🏷 Ingredienti usati (opzionale)
+            </p>
+            <div id="prd-adhoc-lotti-list"></div>
+            <button type="button" onclick="ProduzioneModule.addAdHocLotto()"
+                class="mt-2 text-xs text-amber-700 underline">
+                + Aggiungi ingrediente
+            </button>
+        </div>`;
+    },
+
+    addAdHocLotto() {
+        const list = document.getElementById('prd-adhoc-lotti-list');
+        const idx = list.children.length;
+        const mpOptions = MateriePrimeModule.materie_prime
+            .map(mp => `<option value="${mp.id}" data-nome="${mp.nome}">${mp.nome}</option>`)
+            .join('');
+        const div = document.createElement('div');
+        div.className = 'flex gap-2 mb-2 items-center';
+        div.dataset.idx = idx;
+        div.innerHTML = `
+        <select class="flex-1 px-2 py-1 border rounded text-sm adhoc-mp-sel"
+            onchange="ProduzioneModule.onAdHocMPChange(this)">
+            <option value="">— Materia prima —</option>
+            ${mpOptions}
+        </select>
+        <input type="text" placeholder="Lotto" class="w-28 px-2 py-1 border rounded text-sm adhoc-lotto-val">
+        <button type="button" onclick="this.parentElement.remove()"
+            class="text-red-400 hover:text-red-600 text-lg leading-none">×</button>`;
+        list.appendChild(div);
+    },
+
+    onAdHocMPChange(sel) {
+        const mpId = sel.value;
+        if (!mpId) return;
+        const lottiInput = sel.parentElement.querySelector('.adhoc-lotto-val');
+        const lottiAttivi = MateriePrimeModule.getLottiAttivi(mpId);
+        if (lottiAttivi.length > 0) {
+            lottiInput.value = lottiAttivi[0].lotto; // precompila con FIFO
+        }
     },
 
     stampaRegistro() {
