@@ -1922,7 +1922,11 @@ const ProduzioneModule = {
             .map(mp => `<option value="mp|${mp.id}" data-nome="${mp.nome}">${mp.nome}</option>`)
             .join('');
 
-        const smlAttivi = (this.produzioni || []).filter(p => this.isSemilavorato(p.ricettaId) && !p.archiviato);
+        const smlAttivi = (this.produzioni || []).filter(p => {
+            if (p.archiviato) return false;
+            const ricetta = RicetteModule.getRicetta(p.ricettaId);
+            return ricetta?.semilavorato === true || this.isSemilavorato(p.ricettaId);
+        });
         const smlOptions = smlAttivi
             .map(s => `<option value="sml|${s.id}" data-nome="${s.ricettaNome}">${s.ricettaNome} · ${s.lotto}</option>`)
             .join('');
