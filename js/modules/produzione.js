@@ -1193,6 +1193,11 @@ const ProduzioneModule = {
             }
 
             Utils.showToast(`✅ ${ricettaNome} · Lotto: ${prod.lotto}`, 'success');
+            // Salva come ricetta se richiesto
+            if (isAdHoc && document.getElementById('prd-adhoc-salva-ricetta')?.checked) {
+                const tuttiIng = [...lottiMP, ...lottiSML];
+                this.mostraPopupSalvaRicetta(prod, tuttiIng);
+            }
             this.closeModal();
             this.render();
 
@@ -1947,6 +1952,131 @@ const ProduzioneModule = {
         if (lottiAttivi.length > 0) {
             lottiInput.value = lottiAttivi[0].lotto; // precompila con FIFO
         }
+    },
+
+    mostraPopupSalvaRicetta(prod, ingredienti) {
+        const categorie = ['Pasta fresca ripiena', 'Gastronomia', 'Sfoglia', 'Semilavorato base', 'Semilavorato composto'];
+        const catOptions = categorie.map(c =>
+            `<option value="${c}" ${c === 'Gastronomia' ? 'selected' : ''}>${c}</option>`
+        ).join('');
+
+        const ingHtml = ingredienti.length === 0 ?
+            '<p class="text-xs text-gray-400">Nessun ingrediente specificato</p>' :
+            ingredienti.map(ing => `
+            <div class="flex gap-2 items-center mb-2">
+                <span class="flex-1 text-sm text-gray-700">${ing.mpNome || ing.smlNome}</span>
+                <input type="number" step="0.01" min="0"
+                    id="ric-qta-${ing.mpId || ing.smlId}"
+                    placeholder="Quantità"
+                    class="w-24 px-2 py-1 border rounded text-sm">
+                <select id="ric-unit-${ing.mpId || ing.smlId}"
+                    class="w-20 px-2 py-1 border rounded text-sm">
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="pz">pz</option>
+                    <option value="lt">lt</option>
+                    <option value="ml">ml</option>
+                </select>
+            </div>`
+            ).join('');
+
+        const html = `
+    <div class="modal-overlay" id="salva-ricetta-modal">
+        <div class="modal-box">
+            <div class="bg-amber-700 text-white p-5 rounded-t-xl">
+                <h3 class="text-xl font-bold">💾 Salva nel ricettario</h3>
+                <p class="text-sm opacity-80">${prod.ricettaNome}</p>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Categoria</label>
+                    <select id="ric-categoria-nuova" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        ${catOptions}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">
+                        Quantità ingredienti <span class="text-gray-400 font-normal">(opzionale)</span>
+                    </label>
+                    ${ingHtml}
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="ProduzioneModule.chiudiSalvaRicetta('${prod.id}')"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-semibold">
+                        Salta
+                    </button>
+                    <button onclick="ProduzioneModule.confermaSalvaRicetta('${prod.id}')"
+                        class="flex-1 bg-amber-700 text-white py-2.5 rounded-lg font-semibold">
+                        💾 Salva ricetta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    chiudiSalvaRicetta(prodId) {
+        document.getElementById('salva-ricetta-modal')?.remove();
+    },
+
+    confermaSalvaRicetta(prodId) {
+        const prod = this.getProduzione(prodId);
+        if (!prod) return;
+
+        const categoria = document.getElementById('ric-categoria-nuova').value;
+
+        // Costruisce ingredienti con quantità opzionali
+        const ingredienti = [];
+        [...(prod.lottiMP || [])].forEach(ing => {
+            const qtaEl = document.getElementById(`ric-qta-${ing.mpId}`);
+            const unitEl = document.getElementById(`ric-unit-${ing.mpId}`);
+            ingredienti.push({
+                tipo: 'mp',
+                refId: ing.mpId,
+                refNome: ing.mpNome,
+                quantita: parseFloat(qtaEl?.value) || null,
+                unita: unitEl?.value || 'kg'
+            });
+        });
+        [...(prod.lottiSML || [])].forEach(ing => {
+            const qtaEl = document.getElementById(`ric-qta-${ing.smlId}`);
+            const unitEl = document.getElementById(`ric-unit-${ing.smlId}`);
+            ingredienti.push({
+                tipo: 'sml',
+                refId: ing.smlId,
+                refNome: ing.smlNome,
+                quantita: parseFloat(qtaEl?.value) || null,
+                unita: unitEl?.value || 'kg'
+            });
+        });
+
+        // Crea la ricetta
+        const nuovaRicetta = RicetteModule.addRicetta({
+            nome: prod.ricettaNome,
+            categoria: categoria,
+            semilavorato: categoria === 'Semilavorato base' || categoria === 'Semilavorato composto' || categoria === 'Sfoglia',
+            vendibile: true,
+            note: 'Creata da produzione ad hoc',
+            shelfLife: null
+        });
+
+        // Aggiunge ingredienti alla ricetta
+        ingredienti.forEach(ing => {
+            RicetteModule.addIngrediente(nuovaRicetta.id, ing);
+        });
+
+        // Aggiorna la produzione collegandola alla ricetta
+        prod.ricettaId = nuovaRicetta.id;
+        prod.isAdHoc = false;
+        prod.tipo = this.getTipo(nuovaRicetta.id);
+        prod.categoria = categoria;
+        this.save();
+        this.render();
+
+        document.getElementById('salva-ricetta-modal')?.remove();
+        Utils.showToast(`✅ Ricetta "${prod.ricettaNome}" salvata nel ricettario`, 'success');
     },
 
     stampaRegistro() {
