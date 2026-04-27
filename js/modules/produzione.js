@@ -625,33 +625,19 @@ const ProduzioneModule = {
         const problemi = [];
         const visited = new Set([ricettaId]);
 
-        // Controlla ogni ingrediente
         for (const ing of ricetta.ingredienti) {
             if (ing.tipo === 'mp') {
                 const mpObj = MateriePrimeModule.getMP(ing.refId);
                 if (mpObj?.noTraccia) continue;
 
-                const giacenza = MateriePrimeModule.getGiacenza(ing.refId);
                 const lottiAttivi = MateriePrimeModule.getLottiAttivi(ing.refId);
-                const hasLotti = lottiAttivi.length > 0;
-
-                if (!hasLotti) {
+                if (lottiAttivi.length === 0) {
                     problemi.push({
                         tipo: 'mp_no_lotti',
                         nome: ing.refNome,
                         refId: ing.refId,
                         msg: `Nessun lotto attivo`
                     });
-                } else if (giacenza > 0 && ing.quantita && ricetta.resa) {
-                    const necessaria = (quantita * ing.quantita) / ricetta.resa;
-                    if (giacenza < necessaria) {
-                        problemi.push({
-                            tipo: 'mp_scorta',
-                            nome: ing.refNome,
-                            refId: ing.refId,
-                            msg: `Scorta insufficiente (hai ${giacenza}${ing.unita || 'kg'}, servono ~${Math.round(necessaria * 10) / 10}${ing.unita || 'kg'})`
-                        });
-                    }
                 }
             } else if (ing.tipo === 'sml') {
                 const ricettaSml = RicetteModule.getRicetta(ing.refId);
@@ -679,7 +665,6 @@ const ProduzioneModule = {
 
         if (problemi.length === 0) return;
 
-        // Mostra popup avvisi
         let html = `
     <div class="modal-overlay" id="disponibilita-modal">
         <div class="modal-box">
@@ -690,19 +675,19 @@ const ProduzioneModule = {
             <div class="p-5 space-y-3">`;
 
         problemi.forEach(p => {
-            const actionBtn = p.tipo === 'mp_no_lotti' || p.tipo === 'mp_scorta'
+            const actionBtn = p.tipo === 'mp_no_lotti'
                 ? `<button onclick="ProduzioneModule.chiudiDisponibilita();MateriePrimeModule.openModalCarico('${p.refId}')"
-                    class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200 mt-1">
-                    + Aggiungi carico
-                    </button>`
+                class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200 mt-1">
+                + Aggiungi carico
+                </button>`
                 : p.tipo === 'sml_bloccante'
                     ? `<button onclick="ProduzioneModule.chiudiDisponibilita();ProduzioneModule.openModalNewPerSml('${p.ricettaId}')"
-                        class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 mt-1">
-                        + Registra produzione prima
-                        </button>`
+                    class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 mt-1">
+                    + Registra produzione prima
+                    </button>`
                     : `<span class="text-xs text-blue-500 mt-1 block">
-                            ✅ Verrà creato automaticamente con lotti FIFO
-                        </span>`;
+                        ✅ Verrà creato automaticamente con lotti FIFO
+                    </span>`;
             html += `
             <div class="border rounded-lg p-3 ${p.tipo === 'sml_mancante' ? 'bg-blue-50 border-blue-200' : p.tipo === 'sml_bloccante' ? 'bg-red-50 border-red-300' : 'bg-red-50 border-red-200'}">
                 <div class="font-semibold text-gray-800 text-sm">${p.nome}</div>
@@ -720,7 +705,7 @@ const ProduzioneModule = {
             </div>
             </div>
         </div>
-    </div>`;
+    /div>`;
 
         document.body.insertAdjacentHTML('beforeend', html);
     },
@@ -742,16 +727,6 @@ const ProduzioneModule = {
                         refId: ing.refId,
                         msg: `Nessun lotto attivo`
                     });
-                } else {
-                    const giacenza = MateriePrimeModule.getGiacenza(ing.refId);
-                    if (giacenza <= 0 && ing.quantita) {
-                        problemi.push({
-                            tipo: 'mp_scorta',
-                            nome: `${ing.refNome} (per ${nomeParent})`,
-                            refId: ing.refId,
-                            msg: `Scorta esaurita`
-                        });
-                    }
                 }
             } else if (ing.tipo === 'sml') {
                 const ricettaSub = RicetteModule.getRicetta(ing.refId);
@@ -770,12 +745,9 @@ const ProduzioneModule = {
                                 ? `⛔ Deve essere prodotto prima`
                                 : `Nessuna produzione attiva`
                         });
-                        // Controlla ricorsivamente SOLO se il SML non esiste
                         this.controllaSml(ricettaSub, ing.refNome, problemi, visited, dataProduzione);
                     }
-                    // Se il SML esiste già → non controllare le sue MP
                 } else {
-                    // Sfoglia: controlla sempre le sue MP
                     this.controllaSml(ricettaSub, ing.refNome, problemi, visited, dataProduzione);
                 }
             }
@@ -1387,6 +1359,7 @@ const ProduzioneModule = {
             nuovaProd.archiviatoAt = new Date().toISOString();
             delete nuovaProd._autoCreato;
         });
+
 
         this.save();
         this.render();
