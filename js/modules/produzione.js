@@ -238,8 +238,15 @@ const ProduzioneModule = {
             );
         }
 
-        const attivi = lista.filter(p => !p.archiviato);
+        // I congelati sono sempre visibili, ignorano il filtro temporale
+        const tuttiCongelati = this.produzioni.filter(p => p.congelato && !p.archiviato);
+        const attivi = lista.filter(p => !p.archiviato && !p.congelato);
         const archiviati = lista.filter(p => p.archiviato);
+
+        // Aggiungi congelati non già presenti nella lista filtrata
+        const congelatiVisibili = tuttiCongelati.filter(p =>
+            !attivi.find(a => a.id === p.id)
+        );
 
         if (lista.length === 0) {
             container.innerHTML = `
@@ -253,15 +260,39 @@ const ProduzioneModule = {
         let html = '';
 
         const sezioni = [
-            { tipo: 'sfoglia', label: '🍃 Sfoglia', items: attivi.filter(p => p.tipo === 'sfoglia') },
-            { tipo: 'base', label: '🧱 Semilavorati base', items: attivi.filter(p => p.tipo === 'base') },
-            { tipo: 'composto', label: '🔧 Semilavorati composti', items: attivi.filter(p => p.tipo === 'composto') },
-            { tipo: 'prodotto', label: '🍝 Prodotti finiti', items: attivi.filter(p => p.tipo === 'prodotto') },
+            {
+                id: 'congelati',
+                label: '❄️ Congelati',
+                items: congelatiVisibili
+            },
+            {
+                id: 'pasta',
+                label: '🍝 Pasta fresca',
+                items: attivi.filter(p => p.categoria === 'Pasta fresca ripiena')
+            },
+            {
+                id: 'sfoglia',
+                label: '🍃 Sfoglia',
+                items: attivi.filter(p => p.categoria === 'Sfoglia')
+            },
+            {
+                id: 'gastronomia',
+                label: '🥘 Gastronomia',
+                items: attivi.filter(p => p.categoria === 'Gastronomia')
+            },
+            {
+                id: 'cucina',
+                label: '🥩 Cucina',
+                items: attivi.filter(p =>
+                    p.categoria === 'Semilavorato base' ||
+                    p.categoria === 'Semilavorato composto'
+                )
+            },
         ];
 
         sezioni.forEach(sez => {
             if (sez.items.length === 0) return;
-            const sezId = `sez-${sez.tipo}`;
+            const sezId = `sez-${sez.id}`;
             html += `
             <div class="mb-2 mt-4">
                 <button onclick="ProduzioneModule.toggleSezione('${sezId}')"

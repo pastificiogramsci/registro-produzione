@@ -314,13 +314,10 @@ const RicetteModule = {
         document.getElementById('ric-form-id').value = r.id;
         document.getElementById('ric-form-nome').value = r.nome;
         document.getElementById('ric-form-categoria').value = r.categoria;
-        document.getElementById('ric-form-sml').checked = r.semilavorato;
-        document.getElementById('ric-form-vendibile').checked = r.vendibile;
         document.getElementById('ric-form-note').value = r.note;
         document.getElementById('ric-form-shelf').value = r.shelfLife || '';
         document.getElementById('ric-form-resa').value = r.resa || '';
         document.getElementById('ric-form-resa-unita').value = r.resaUnita || 'kg';
-        document.getElementById('ric-form-vendibile-row').classList.toggle('hidden', !r.semilavorato);
         document.getElementById('ric-modal').classList.remove('hidden');
     },
 
@@ -328,27 +325,14 @@ const RicetteModule = {
         document.getElementById('ric-modal').classList.add('hidden');
     },
 
-    toggleVendibile() {
-        const isSml = document.getElementById('ric-form-sml').checked;
-        document.getElementById('ric-form-vendibile-row').classList.toggle('hidden', !isSml);
-        if (!isSml) document.getElementById('ric-form-vendibile').checked = false;
-    },
-
     onCategoriaChange() {
-        const cat = document.getElementById('ric-form-categoria').value;
-        const isSmlCategoria = cat === 'Semilavorato base' || cat === 'Semilavorato composto' || cat === 'Sfoglia';
-        // Auto-seleziona flag semilavorato in base alla categoria
-        document.getElementById('ric-form-sml').checked = isSmlCategoria;
-        document.getElementById('ric-form-vendibile-row').classList.toggle('hidden', !isSmlCategoria);
-        if (!isSmlCategoria) document.getElementById('ric-form-vendibile').checked = false;
+        // nessuna azione necessaria — il tipo è determinato dalla categoria
     },
 
     saveModalRicetta() {
         const id = document.getElementById('ric-form-id').value;
         const nome = document.getElementById('ric-form-nome').value.trim();
         const categoria = document.getElementById('ric-form-categoria').value;
-        const sml = document.getElementById('ric-form-sml').checked;
-        const vendibile = document.getElementById('ric-form-vendibile').checked;
         const note = document.getElementById('ric-form-note').value.trim();
         const shelfLife = document.getElementById('ric-form-shelf').value;
         const resa = parseFloat(document.getElementById('ric-form-resa').value) || 0;
@@ -357,10 +341,10 @@ const RicetteModule = {
         if (!nome) { Utils.showToast('⚠️ Il nome è obbligatorio', 'warning'); return; }
 
         if (id) {
-            this.updateRicetta(id, { nome, categoria, semilavorato: sml, vendibile, note, shelfLife, resa, resaUnita });
+            this.updateRicetta(id, { nome, categoria, note, shelfLife, resa, resaUnita });
             Utils.showToast('✅ Ricetta aggiornata', 'success');
         } else {
-            this.addRicetta({ nome, categoria, semilavorato: sml, vendibile, note, shelfLife, resa, resaUnita });
+            this.addRicetta({ nome, categoria, note, shelfLife, resa, resaUnita });
             Utils.showToast(`✅ "${nome}" aggiunta`, 'success');
         }
 
@@ -402,9 +386,9 @@ const RicetteModule = {
                 sel.innerHTML += `<option value="${mp.id}" data-nome="${mp.nome}">${mp.nome}</option>`;
             });
         } else {
-            // semilavorati = ricette con flag semilavorato
-            this.getRicetteSemilavorati().forEach(r => {
-                sel.innerHTML += `<option value="${r.id}" data-nome="${r.nome}">${r.nome}</option>`;
+            // tutte le ricette sono potenzialmente usabili come ingrediente
+            this.getAllRicette().forEach(r => {
+                sel.innerHTML += `<option value="${r.id}" data-nome="${r.nome}">${r.nome} (${r.categoria})</option>`;
             });
         }
     },
