@@ -83,11 +83,20 @@ const RicetteModule = {
     },
 
     getRicetteSemilavorati() {
-        return this.ricette.filter(r => r.semilavorato);
+        return this.ricette.filter(r =>
+            r.semilavorato ||
+            r.categoria === 'Sfoglia' ||
+            r.categoria === 'Semilavorato base' ||
+            r.categoria === 'Semilavorato composto'
+        );
     },
 
     getRicetteProdotti() {
-        return this.ricette.filter(r => !r.semilavorato || r.vendibile);
+        const categorieSML = ['Sfoglia', 'Semilavorato base', 'Semilavorato composto'];
+        return this.ricette.filter(r =>
+            !r.semilavorato && !categorieSML.includes(r.categoria) ||
+            r.vendibile
+        );
     },
 
     // ==========================================

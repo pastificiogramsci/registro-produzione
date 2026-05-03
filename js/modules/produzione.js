@@ -43,17 +43,15 @@ const ProduzioneModule = {
     },
 
     archiviaScaduti() {
+        // Non archiviamo più automaticamente — una produzione scaduta
+        // rimane visibile e selezionabile per produzioni retroattive.
         const oggi = new Date();
         oggi.setHours(0, 0, 0, 0);
-        let modificato = false;
         this.produzioni.forEach(p => {
-            if (!p.archiviato && p.scadenza && new Date(p.scadenza) < oggi) {
-                p.archiviato = true;
-                p.archiviatoAt = new Date().toISOString();
-                modificato = true;
+            if (p.scadenza && new Date(p.scadenza) < oggi) {
+                p.scadutoAutomatico = true;
             }
         });
-        if (modificato) this.save();
     },
 
     save() {
@@ -168,9 +166,30 @@ const ProduzioneModule = {
     },
 
     // Semilavorati attivi per una ricetta (usati dal modal produzione)
-    getAttiviPerRicetta(ricettaId) {
+    getAttiviPerRicetta(ricettaId, dataProduzione) {
+        const dataP = dataProduzione ? new Date(dataProduzione) : new Date();
+        dataP.setHours(0, 0, 0, 0);
+
         return this.produzioni
-            .filter(p => p.ricettaId === ricettaId && !p.archiviato && this.isSemilavorato(p.ricettaId))
+            .filter(p => {
+                if (p.ricettaId !== ricettaId) return false;
+                if (!this.isSemilavorato(p.ricettaId)) return false;
+
+                // Il semilavorato deve essere stato prodotto prima o nel giorno della produzione
+                const dataProd = new Date(p.data);
+                if (dataProd > dataP) return false;
+
+                // Se ha una scadenza deve essere ancora valida alla data di produzione
+                if (p.scadenza && !p.congelato && new Date(p.scadenza) < dataP) return false;
+
+                // Se archiviato manualmente prima della data di produzione non è disponibile
+                if (p.archiviato && p.archiviatoAt) {
+                    const dataArchivio = new Date(p.archiviatoAt);
+                    if (dataArchivio < dataP) return false;
+                }
+
+                return true;
+            })
             .sort((a, b) => {
                 // Freschi prima dei congelati
                 if (a.congelato && !b.congelato) return 1;
@@ -646,7 +665,7 @@ const ProduzioneModule = {
                 const isBase = ricettaSml?.categoria === 'Semilavorato base';
 
                 if (!isSfoglia) {
-                    const attiviSml = this.getAttiviPerRicetta(ing.refId);
+                    const attiviSml = this.getAttiviPerRicetta(ing.refId, dataProd);
                     if (attiviSml.length === 0) {
                         problemi.push({
                             tipo: isBase ? 'sml_bloccante' : 'sml_mancante',
@@ -735,7 +754,7 @@ const ProduzioneModule = {
                 const isBase = ricettaSub?.categoria === 'Semilavorato base';
 
                 if (!isSfoglia) {
-                    const attiviSml = this.getAttiviPerRicetta(ing.refId);
+                    const attiviSml = this.getAttiviPerRicetta(ing.refId, dataProduzione);
                     if (attiviSml.length === 0) {
                         problemi.push({
                             tipo: isBase ? 'sml_bloccante' : 'sml_mancante',
@@ -791,6 +810,7 @@ const ProduzioneModule = {
         this.closeModal();
         MateriePrimeModule.openModalCarico(mpId);
     },
+
     openModalNewPerSml(ricettaId) {
         this.openModalNew();
         // Preseleziona la ricetta
@@ -876,7 +896,8 @@ const ProduzioneModule = {
         <div class="border rounded-lg p-3 bg-orange-50">
         <p class="text-xs font-bold text-orange-700 uppercase mb-2">🥩 Lotti Semilavorati</p>
             ${smlIng.map(ing => {
-            const attivi = this.getAttiviPerRicetta(ing.refId);
+            const dataProd = document.getElementById('prd-form-data')?.value;
+            const attivi = this.getAttiviPerRicetta(ing.refId, dataProd);
 
             // Pre-seleziona lotto scongelato se presente
             const scongelaRefId = this._scongelaRef?.prodRicettaId === ing.refId
@@ -994,7 +1015,8 @@ const ProduzioneModule = {
                     if (!lotto) return;
                     lottiMP.push({ mpId: id, mpNome, lottoId: '', lotto });
                 } else if (tipo === 'sml') {
-                    const attiviPerRicetta = this.getAttiviPerRicetta(id);
+                    const dataProd = document.getElementById('prd-form-data')?.value;
+                    const attiviPerRicetta = this.getAttiviPerRicetta(id, dataProd);
                     if (!lotto) {
                         if (attiviPerRicetta.length > 0) lotto = attiviPerRicetta[0].lotto;
                     }
@@ -1857,7 +1879,8 @@ const ProduzioneModule = {
             const lottiAttivi = MateriePrimeModule.getLottiAttivi(id);
             if (lottiAttivi.length > 0) lottoInput.value = lottiAttivi[0].lotto;
         } else if (tipo === 'sml') {
-            const attiviPerRicetta = this.getAttiviPerRicetta(id);
+            const dataProd = document.getElementById('prd-form-data')?.value;
+            const attiviPerRicetta = this.getAttiviPerRicetta(id, dataProd);
             if (attiviPerRicetta.length > 0) lottoInput.value = attiviPerRicetta[0].lotto;
         }
     },

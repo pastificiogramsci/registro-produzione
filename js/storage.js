@@ -182,16 +182,12 @@ const Storage = {
             ];
             for (const { path, key } of keys) {
                 await this.saveDropbox(path, this.loadLocal(key, []));
-                await this.delay(500);
+                await this.delay(300);
             }
             if (!silent) {
                 console.log("✅ Sync completato");
                 localStorage.setItem('lastSync', new Date().toISOString());
             }
-            // Ricarica i moduli con i dati aggiornati
-            if (typeof MateriePrimeModule !== 'undefined') MateriePrimeModule.init();
-            if (typeof RicetteModule !== 'undefined') RicetteModule.init();
-            if (typeof ProduzioneModule !== 'undefined') ProduzioneModule.init();
         } catch (error) {
             console.error("❌ Errore sync:", error);
         }
@@ -373,7 +369,7 @@ const Storage = {
             console.log('⚡ Locale vuoto, uso direttamente dati remoti');
             return remoteData;
         }
-        
+
         // 1. Aggiungi tutti i records remoti
         remoteData.forEach(item => {
             const itemId = getItemId(item);
@@ -523,76 +519,6 @@ const Storage = {
         }
     },
 
-    // ==========================================
-    // FUNZIONI COMODE
-    // ==========================================
-
-    async saveOrders(orders) {
-        this.saveLocal(CONFIG.STORAGE_KEYS.ORDERS, orders);
-        await this.saveDropbox(CONFIG.DROPBOX_PATHS.ORDERS, orders);
-    },
-
-    async loadOrders() {
-        const cloudData = await this.loadDropbox(CONFIG.DROPBOX_PATHS.ORDERS);
-        if (cloudData) return cloudData;
-        return this.loadLocal(CONFIG.STORAGE_KEYS.ORDERS, []);
-    },
-
-    async saveCustomers(customers) {
-        this.saveLocal(CONFIG.STORAGE_KEYS.CUSTOMERS, customers);
-        await this.saveDropbox(CONFIG.DROPBOX_PATHS.CUSTOMERS, customers);
-    },
-
-    async loadCustomers() {
-        const cloudData = await this.loadDropbox(CONFIG.DROPBOX_PATHS.CUSTOMERS);
-        if (cloudData) return cloudData;
-        return this.loadLocal(CONFIG.STORAGE_KEYS.CUSTOMERS, []);
-    },
-
-    async saveProducts(products) {
-        this.saveLocal(CONFIG.STORAGE_KEYS.PRODUCTS, products);
-        await this.saveDropbox(CONFIG.DROPBOX_PATHS.PRODUCTS, products);
-    },
-
-    async loadProducts() {
-        const cloudData = await this.loadDropbox(CONFIG.DROPBOX_PATHS.PRODUCTS);
-        if (cloudData) return cloudData;
-        return this.loadLocal(CONFIG.STORAGE_KEYS.PRODUCTS, []);
-    },
-
-    async saveFidelity(fidelityData) {
-        this.saveLocal(CONFIG.STORAGE_KEYS.FIDELITY, fidelityData);
-        await this.saveDropbox(CONFIG.DROPBOX_PATHS.FIDELITY, fidelityData);
-    },
-
-    async loadFidelity() {
-        const cloudData = await this.loadDropbox(CONFIG.DROPBOX_PATHS.FIDELITY);
-        if (cloudData) return cloudData;
-        return this.loadLocal(CONFIG.STORAGE_KEYS.FIDELITY, []);
-    },
-
-    async saveCampaigns(campaigns) {
-        this.saveLocal(CONFIG.STORAGE_KEYS.CAMPAIGNS, campaigns);
-        this.lastLocalSave[CONFIG.STORAGE_KEYS.CAMPAIGNS] = new Date().toISOString();
-        await this.saveDropbox(CONFIG.DROPBOX_PATHS.CAMPAIGNS, campaigns);
-    },
-
-    async loadCampaigns() {
-        const result = await this.loadDropbox(CONFIG.DROPBOX_PATHS.CAMPAIGNS);
-        if (result?.data) {
-            const localCampaigns = this.loadLocal(CONFIG.STORAGE_KEYS.CAMPAIGNS, []);
-            if (localCampaigns.length > 0) {
-                const merged = this.mergeData(
-                    CONFIG.STORAGE_KEYS.CAMPAIGNS,
-                    localCampaigns,
-                    result.data
-                );
-                return merged;
-            }
-            return result.data;
-        }
-        return this.loadLocal(CONFIG.STORAGE_KEYS.CAMPAIGNS, []);
-    },
 
     // ==========================================
     // INIZIALIZZAZIONE TIMESTAMP LOCALI
@@ -611,142 +537,7 @@ const Storage = {
 
         console.log('📅 Timestamp locali recuperati:', this.lastLocalSave);
     },
-
-    // ==========================================
-    // COUNTER CENTRALIZZATO CON LOCK
-    // ==========================================
-
-    async getNextOrderNumber(deliveryDate) {
-        if (!this.dropboxClient) {
-            console.warn('⚠️ Dropbox non disponibile, uso counter locale');
-            return this.getNextOrderNumberLocal(deliveryDate);
-        }
-
-        const maxRetries = 10;
-        const lockKey = `/counters/lock_orders_${deliveryDate}.json`;
-        const counterKey = `/counters/orders_${deliveryDate}.json`;
-
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-            try {
-                // 1. Prova a creare il LOCK
-                const lockAcquired = await this.acquireLock(lockKey);
-
-                if (!lockAcquired) {
-                    console.log(`🔒 Lock occupato, aspetto... (tentativo ${attempt + 1}/${maxRetries})`);
-                    await this.delay(200 + (attempt * 100));
-                    continue;
-                }
-
-                console.log(`🟢 Lock acquisito!`);
-
-                try {
-                    // 2. Leggi counter
-                    let counter = await this.loadDropbox(counterKey);
-                    let currentNumber = null;
-
-                    if (counter?.data?.number) {
-                        currentNumber = counter.data.number;
-                        console.log(`📥 Counter esistente per ${deliveryDate}: ${currentNumber}`);
-                    } else {
-                        // ✅ NUOVO: Inizializza counter contando ordini esistenti
-                        console.log(`🆕 Counter non esiste, conto ordini esistenti per ${deliveryDate}...`);
-                        currentNumber = this.countExistingOrders(deliveryDate) + 1;
-                        console.log(`📊 Trovati ${currentNumber - 1} ordini esistenti, parto da ${currentNumber}`);
-                    }
-
-                    console.log(`🎫 Counter per ${deliveryDate}: assegno numero ${currentNumber}`);
-
-                    // 3. Incrementa e salva
-                    const newCounter = {
-                        number: currentNumber + 1,
-                        lastUpdate: new Date().toISOString(),
-                        initialized: true
-                    };
-
-                    await this.saveDropbox(counterKey, newCounter);
-
-                    console.log(`✅ Counter aggiornato → prossimo sarà ${currentNumber + 1}`);
-
-                    // 4. Rilascia il lock
-                    await this.releaseLock(lockKey);
-
-                    return currentNumber;
-
-                } catch (error) {
-                    await this.releaseLock(lockKey);
-                    throw error;
-                }
-
-            } catch (error) {
-                console.error(`❌ Errore tentativo ${attempt + 1}:`, error);
-
-                if (attempt === maxRetries - 1) {
-                    console.error('❌ Troppi tentativi, uso counter locale');
-                    return this.getNextOrderNumberLocal(deliveryDate);
-                }
-            }
-        }
-
-        return this.getNextOrderNumberLocal(deliveryDate);
-    },
-
-    countExistingOrders(deliveryDate) {
-        return 0;
-    },
-
-    async acquireLock(lockKey, timeout = 30000) {
-        try {
-            const lockData = {
-                deviceId: this.getDeviceId(),
-                timestamp: Date.now(),
-                expires: Date.now() + timeout
-            };
-
-            const existing = await this.loadDropbox(lockKey);
-
-            if (existing?.data) {
-                const lockAge = Date.now() - existing.data.timestamp;
-                if (lockAge < timeout) {
-                    return false;
-                }
-                console.log('🔓 Lock scaduto, lo sostituisco');
-            }
-
-            await this.saveDropbox(lockKey, lockData);
-
-            await this.delay(50);
-            const verify = await this.loadDropbox(lockKey);
-
-            if (verify?.data?.deviceId === this.getDeviceId()) {
-                return true;
-            }
-
-            return false;
-
-        } catch (error) {
-            console.error('❌ Errore acquisizione lock:', error);
-            return false;
-        }
-    },
-
-    async releaseLock(lockKey) {
-        try {
-            await this.dropboxClient.filesDeleteV2({ path: lockKey });
-            console.log('🔓 Lock rilasciato');
-        } catch (error) {
-            console.log('🔓 Lock già rilasciato o non esistente');
-        }
-    },
-
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    },
-
-    getNextOrderNumberLocal(deliveryDate) {
-        return 1;
-    }
-
 };
 
 window.Storage = Storage;
-console.log("✅ Storage caricato con merge intelligente v2.1");
+console.log("✅ Storage caricato");

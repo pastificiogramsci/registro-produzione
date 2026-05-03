@@ -27,17 +27,16 @@ const MateriePrimeModule = {
     },
 
     archiviaScaduti() {
+        // Non archiviamo più automaticamente — un lotto scaduto
+        // rimane selezionabile per produzioni retroattive.
+        // Viene marcato visivamente come scaduto ma non bloccato.
         const oggi = new Date();
         oggi.setHours(0, 0, 0, 0);
-        let modificato = false;
         this.carichi.forEach(c => {
-            if (!c.archiviato && c.scadenza && new Date(c.scadenza) < oggi) {
-                c.archiviato = true;
-                c.archiviatoAt = new Date().toISOString();
-                modificato = true;
+            if (c.scadenza && new Date(c.scadenza) < oggi) {
+                c.scadutoAutomatico = true;
             }
         });
-        if (modificato) this.save();
     },
 
     // ==========================================
@@ -352,38 +351,33 @@ const MateriePrimeModule = {
             .sort((a, b) => new Date(b.dataArrivo) - new Date(a.dataArrivo)); // più recente prima
     },
 
-    // Usato dalla produzione: restituisce gli ultimi 2 lotti attivi per selezione
     getLottiPerProduzione(mpId, dataProduzione) {
-        const oggi = new Date();
-        oggi.setHours(0, 0, 0, 0);
-        const attivi = this.getLottiAttivi(mpId);
-        const validi = attivi.filter(l => !l.scadenza || new Date(l.scadenza) >= oggi);
-        const scaduti = attivi.filter(l => l.scadenza && new Date(l.scadenza) < oggi);
+        const dataP = dataProduzione ? new Date(dataProduzione) : new Date();
+        dataP.setHours(0, 0, 0, 0);
 
-        // Include lotti archiviati utili per la data di produzione
-        let archivatiUtili = [];
-        if (dataProduzione) {
-            const dataP = new Date(dataProduzione);
-            archivatiUtili = this.carichi.filter(c =>
-                c.mpId === mpId &&
-                c.archiviato &&
-                (!c.scadenza || new Date(c.scadenza) >= dataP)
-            );
-        } else {
-            // Fallback: ultimi 30 giorni
-            const trentaGiorni = new Date();
-            trentaGiorni.setDate(trentaGiorni.getDate() - 30);
-            archivatiUtili = this.carichi.filter(c =>
-                c.mpId === mpId &&
-                c.archiviato &&
-                new Date(c.archiviatoAt || c.dataArrivo) >= trentaGiorni
-            );
-        }
+        // Prende tutti i lotti (attivi e archiviati) e filtra
+        // solo quelli che erano disponibili alla data di produzione
+        return this.carichi
+            .filter(c => {
+                if (c.mpId !== mpId) return false;
 
-        // Deduplica per id e ordina per dataArrivo
-        const tutti = [...validi, ...scaduti, ...archivatiUtili];
-        const deduplicati = tutti.filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i);
-        return deduplicati.sort((a, b) => new Date(a.dataArrivo) - new Date(b.dataArrivo));
+                // Il lotto deve essere arrivato prima o nel giorno della produzione
+                const dataArrivo = new Date(c.dataArrivo);
+                if (dataArrivo > dataP) return false;
+
+                // Se ha una scadenza, deve essere ancora valida alla data di produzione
+                if (c.scadenza && new Date(c.scadenza) < dataP) return false;
+
+                // Se è stato archiviato manualmente prima della data di produzione
+                // non è disponibile (es. lotto reso al fornitore)
+                if (c.archiviato && c.archiviatoAt) {
+                    const dataArchivio = new Date(c.archiviatoAt);
+                    if (dataArchivio < dataP) return false;
+                }
+
+                return true;
+            })
+            .sort((a, b) => new Date(a.dataArrivo) - new Date(b.dataArrivo)); // FIFO
     },
 
     scaricoMP(mpId, quantitaDaScaricare) {
