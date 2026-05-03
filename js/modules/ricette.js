@@ -217,8 +217,6 @@ const RicetteModule = {
 
     renderCardRicetta(r) {
         const badges = [];
-        if (r.semilavorato) badges.push('<span class="text-xs bg-orange-100 text-orange-700 border border-orange-200 rounded-full px-2 py-0.5">semilavorato</span>');
-        if (r.vendibile) badges.push('<span class="text-xs bg-green-100 text-green-700 border border-green-200 rounded-full px-2 py-0.5">vendibile</span>');
 
         const nIng = r.ingredienti.length;
         const mpCount = r.ingredienti.filter(i => i.tipo === 'mp').length;
@@ -366,7 +364,6 @@ const RicetteModule = {
         document.getElementById('ing-form-quantita').value = '';
         document.getElementById('ing-form-unita').value = 'kg';
         document.getElementById('ing-form-note').value = '';
-        this.aggiornaSelectIngrediente('mp');
         this.renderDettaglioIngredienti(ricettaId);
         document.getElementById('ing-modal').classList.remove('hidden');
     },
@@ -377,28 +374,66 @@ const RicetteModule = {
     },
 
     // Popola il select ingrediente in base al tipo scelto
-    aggiornaSelectIngrediente(tipo) {
-        const sel = document.getElementById('ing-form-ref');
-        sel.innerHTML = '<option value="">— Seleziona —</option>';
+    cercaIngrediente(query) {
+        const results = document.getElementById('ing-search-results');
+        if (!query || query.length < 2) {
+            results.innerHTML = '';
+            results.classList.add('hidden');
+            return;
+        }
 
-        if (tipo === 'mp') {
-            MateriePrimeModule.getAllMP().forEach(mp => {
-                sel.innerHTML += `<option value="${mp.id}" data-nome="${mp.nome}">${mp.nome}</option>`;
-            });
-        } else {
-            // tutte le ricette sono potenzialmente usabili come ingrediente
-            this.getAllRicette().forEach(r => {
-                sel.innerHTML += `<option value="${r.id}" data-nome="${r.nome}">${r.nome} (${r.categoria})</option>`;
+        const q = query.toLowerCase();
+        const mps = MateriePrimeModule.getAllMP().filter(m => m.nome.toLowerCase().includes(q));
+        const ricette = this.getAllRicette().filter(r => r.nome.toLowerCase().includes(q));
+
+        let html = '';
+
+        if (mps.length > 0) {
+            html += `<div class="text-xs font-bold text-gray-400 uppercase px-3 pt-2 pb-1">📦 Materie Prime</div>`;
+            mps.forEach(mp => {
+                html += `<div class="px-3 py-2 hover:bg-amber-50 cursor-pointer text-sm border-b border-gray-100 last:border-0"
+                    onclick="RicetteModule.selezionaIngrediente('mp', '${mp.id}', ${JSON.stringify(mp.nome)})">
+                    ${mp.nome}
+                </div>`;
             });
         }
+
+        if (ricette.length > 0) {
+            html += `<div class="text-xs font-bold text-gray-400 uppercase px-3 pt-2 pb-1">🥩 Ricette</div>`;
+            ricette.forEach(r => {
+                html += `<div class="px-3 py-2 hover:bg-amber-50 cursor-pointer text-sm border-b border-gray-100 last:border-0"
+                    onclick="RicetteModule.selezionaIngrediente('sml', '${r.id}', ${JSON.stringify(r.nome)})">
+                    ${r.nome} <span class="text-xs text-gray-400">(${r.categoria})</span>
+                </div>`;
+            });
+        }
+
+        if (!html) {
+            html = `<div class="px-3 py-3 text-sm text-gray-400">Nessun risultato per "${query}"</div>`;
+        }
+
+        results.innerHTML = html;
+        results.classList.remove('hidden');
+    },
+
+    selezionaIngrediente(tipo, id, nome) {
+        document.getElementById('ing-form-tipo').value = tipo;
+        document.getElementById('ing-form-ref').value = id;
+        document.getElementById('ing-form-ref-nome').value = nome;
+        document.getElementById('ing-search').value = nome;
+        document.getElementById('ing-search-results').innerHTML = '';
+        document.getElementById('ing-search-results').classList.add('hidden');
+        const icon = tipo === 'mp' ? '📦' : '🥩';
+        document.getElementById('ing-selected').innerHTML = `
+            <span class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">${icon} ${nome}</span>
+        `;
     },
 
     saveIngrediente() {
         const ricettaId = document.getElementById('ing-modal-ricettaId').value;
         const tipo = document.getElementById('ing-form-tipo').value;
-        const sel = document.getElementById('ing-form-ref');
-        const refId = sel.value;
-        const refNome = sel.options[sel.selectedIndex]?.dataset.nome || '';
+        const refId = document.getElementById('ing-form-ref').value;
+        const refNome = document.getElementById('ing-form-ref-nome').value;
         const quantita = document.getElementById('ing-form-quantita').value;
         const unita = document.getElementById('ing-form-unita').value;
         const note = document.getElementById('ing-form-note').value.trim();
@@ -409,7 +444,11 @@ const RicetteModule = {
         Utils.showToast('✅ Ingrediente aggiunto', 'success');
 
         // Reset form
+        document.getElementById('ing-search').value = '';
+        document.getElementById('ing-form-tipo').value = '';
         document.getElementById('ing-form-ref').value = '';
+        document.getElementById('ing-form-ref-nome').value = '';
+        document.getElementById('ing-selected').innerHTML = '';
         document.getElementById('ing-form-quantita').value = '';
         document.getElementById('ing-form-note').value = '';
         this.renderDettaglioIngredienti(ricettaId);

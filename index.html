@@ -671,21 +671,18 @@
             <div class="border-t p-4 bg-gray-50 rounded-b-xl space-y-3">
                 <p class="text-sm font-semibold text-gray-700">+ Aggiungi ingrediente</p>
 
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">Tipo</label>
-                        <select id="ing-form-tipo" class="w-full px-3 py-2 border rounded-lg text-sm"
-                            onchange="RicetteModule.aggiornaSelectIngrediente(this.value)">
-                            <option value="mp">Materia Prima</option>
-                            <option value="sml">Semilavorato</option>
-                        </select>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Ingrediente</label>
+                    <input type="text" id="ing-search" placeholder="🔍 Cerca farina, arrosto, sfoglia..."
+                        class="w-full px-3 py-2 border rounded-lg text-sm"
+                        oninput="RicetteModule.cercaIngrediente(this.value)" autocomplete="off">
+                    <div id="ing-search-results"
+                        class="hidden border border-gray-200 rounded-lg bg-white shadow-lg mt-1 max-h-48 overflow-y-auto">
                     </div>
-                    <div>
-                        <label class="block text-xs text-gray-500 mb-1">Ingrediente</label>
-                        <select id="ing-form-ref" class="w-full px-3 py-2 border rounded-lg text-sm">
-                            <option value="">— Seleziona —</option>
-                        </select>
-                    </div>
+                    <div id="ing-selected" class="mt-1"></div>
+                    <input type="hidden" id="ing-form-tipo" value="">
+                    <input type="hidden" id="ing-form-ref" value="">
+                    <input type="hidden" id="ing-form-ref-nome" value="">
                 </div>
 
                 <div class="grid grid-cols-2 gap-2">
