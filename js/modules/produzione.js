@@ -454,7 +454,7 @@ const ProduzioneModule = {
             prod.lottiSML.forEach(s => {
                 const smlDet = this.produzioni.find(x => x.lotto === s.lotto && x.id !== prod.id)
                     || this.produzioni.find(x => x.id === s.smlRefId);
-                const subId = `sub-${s.smlRefId || s.lotto.replace(/[^a-z0-9]/gi, '')}`;
+                const subId = `sub-${prod.id}-${s.smlRefId || s.lotto.replace(/[^a-z0-9]/gi, '')}`;
                 const hasSubIngredients = smlDet && ((smlDet.lottiMP?.length > 0) || (smlDet.lottiSML?.length > 0));
 
                 html += `
@@ -462,7 +462,7 @@ const ProduzioneModule = {
                     <span class="text-gray-300 text-xs mt-0.5">↳</span>
                     <div class="flex-1">
                         <div class="${hasSubIngredients ? 'cursor-pointer' : ''} flex items-center gap-1"
-                            ${hasSubIngredients ? `onclick="document.getElementById('${subId}').classList.toggle('hidden')"` : ''}>
+                            ${hasSubIngredients ? `onclick=\"event.stopPropagation();document.getElementById('${subId}').classList.toggle('hidden')\"` : ''}
                             <span class="text-xs font-semibold text-orange-700">🥩 ${s.smlNome}</span>
                             <span class="font-mono text-xs text-orange-600 ml-1">${s.lotto}</span>
                             ${smlDet?.scadenza ? `<span class="text-xs text-gray-400 ml-1">scad. ${this.fmtData(smlDet.scadenza)}</span>` : ''}
@@ -1731,16 +1731,30 @@ const ProduzioneModule = {
 
         el.innerHTML = `
             <div class="space-y-4">
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <p class="text-xs font-bold text-green-700 uppercase mb-2">🍳 Produzione</p>
+                <div class="${p.congelato ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'} border rounded-lg p-4">
+                    <p class="text-xs font-bold ${p.congelato ? 'text-blue-700' : 'text-green-700'} uppercase mb-2">
+                        ${p.congelato ? '❄️ Produzione Congelata' : '🍳 Produzione'}
+                    </p>
                     <p class="font-bold text-lg text-gray-800">${p.ricettaNome}</p>
-                    <p class="font-mono text-green-800 font-bold">${p.lotto}</p>
+                    <p class="font-mono ${p.congelato ? 'text-blue-800' : 'text-green-800'} font-bold">${p.lotto}</p>
                     <p class="text-sm text-gray-600 mt-1">
-                        📅 ${this.fmtData(p.data)}
+                        📅 Prodotto il ${this.fmtData(p.data)}
                         ${p.quantita ? ` · ${p.quantita} ${p.unita}` : ''}
                         ${p.operatore ? ` · 👤 ${p.operatore}` : ''}
                     </p>
-                    ${p.scadenza ? `<p class="text-sm text-gray-600">⏱ Scadenza: ${this.fmtData(p.scadenza)} ${scadAvv}</p>` : ''}
+                    ${p.congelato && p.dataAbbattimento ? `
+                    <p class="text-sm text-blue-700 font-medium mt-1">
+                        ❄️ Abbattuto il ${this.fmtData(p.dataAbbattimento)}
+                    </p>` : ''}
+                    ${p.lottoOrigineNum ? `
+                    <p class="text-xs text-blue-500 mt-0.5">
+                        Da lotto originale: <span class="font-mono font-bold">${p.lottoOrigineNum}</span>
+                    </p>` : ''}
+                    ${p.dataScongelo ? `
+                    <p class="text-sm text-amber-700 font-medium mt-1">
+                        🌡️ Scongelato il ${this.fmtData(p.dataScongelo)}
+                    </p>` : ''}
+                    ${!p.congelato && p.scadenza ? `<p class="text-sm text-gray-600">⏱ Scadenza: ${this.fmtData(p.scadenza)} ${scadAvv}</p>` : ''}
                     ${p.note ? `<p class="text-xs text-gray-400 italic mt-1">${p.note}</p>` : ''}
                 </div>
 
@@ -1751,14 +1765,59 @@ const ProduzioneModule = {
             const smlDet = this.produzioni.find(x => x.lotto === s.lotto)
                 || this.produzioni.find(x => x.id === s.smlRefId);
             return `
-                        <div class="mb-2 pb-2 border-b border-orange-100 last:border-0">
+                        <div class="mb-3 pb-3 border-b border-orange-100 last:border-0">
                             <p class="font-medium text-gray-800">${s.smlNome}</p>
                             <p class="font-mono text-orange-800 text-sm">${s.lotto}</p>
                             ${smlDet ? `
                             <p class="text-xs text-gray-500">
-                                Prodotto il ${this.fmtData(smlDet.data)}
-                                ${smlDet.scadenza ? ` · scad. ${this.fmtData(smlDet.scadenza)}` : ''}
+                                📅 Prodotto il ${this.fmtData(smlDet.data)}
+                                ${!smlDet.congelato && smlDet.scadenza ? ` · scad. ${this.fmtData(smlDet.scadenza)}` : ''}
                             </p>
+                            ${smlDet.congelato && smlDet.dataAbbattimento ? `
+                            <p class="text-xs text-blue-600 font-medium">❄️ Abbattuto il ${this.fmtData(smlDet.dataAbbattimento)}</p>` : ''}
+                            ${smlDet.lottoOrigineNum ? `
+                            <p class="text-xs text-blue-400">Da lotto: <span class="font-mono">${smlDet.lottoOrigineNum}</span></p>` : ''}
+                            ${smlDet.dataScongelo ? `
+                            <p class="text-xs text-amber-600 font-medium">🌡️ Scongelato il ${this.fmtData(smlDet.dataScongelo)}</p>` : ''}
+                            ${smlDet.lottiSML?.length > 0 ? `
+                            <div class="mt-2 pl-3 border-l-2 border-orange-300">
+                                <p class="text-xs text-orange-600 font-bold mb-1">Composto da:</p>
+                                ${smlDet.lottiSML.map(sub => {
+                const subDet = this.produzioni.find(x => x.lotto === sub.lotto)
+                    || this.produzioni.find(x => x.id === sub.smlRefId);
+                return `
+                                <div class="mb-2">
+                                    <p class="text-xs font-medium text-gray-700">🥩 ${sub.smlNome}
+                                        <span class="font-mono text-orange-700 ml-1">${sub.lotto}</span>
+                                    </p>
+                                    ${subDet ? `
+                                    <p class="text-xs text-gray-400">📅 Prodotto il ${this.fmtData(subDet.data)}</p>
+                                    ${subDet.congelato && subDet.dataAbbattimento ? `
+                                    <p class="text-xs text-blue-500">❄️ Abbattuto il ${this.fmtData(subDet.dataAbbattimento)}</p>` : ''}
+                                    ${subDet.lottiSML?.length > 0 ? `
+                                    <div class="pl-2 border-l border-orange-200 mt-1">
+                                        <p class="text-xs text-orange-500 font-bold mb-0.5">Composto da:</p>
+                                        ${subDet.lottiSML.map(sub2 => {
+                    const sub2Det = this.produzioni.find(x => x.lotto === sub2.lotto)
+                        || this.produzioni.find(x => x.id === sub2.smlRefId);
+                    return `
+                                        <p class="text-xs text-gray-500">🥩 ${sub2.smlNome}
+                                            <span class="font-mono text-orange-600">${sub2.lotto}</span>
+                                        </p>
+                                        ${sub2Det?.lottiMP?.length > 0 ? sub2Det.lottiMP.map(lu =>
+                        `<p class="text-xs font-mono text-gray-400 pl-2">📦 ${lu.mpNome}: ${lu.lotto}</p>`
+                    ).join('') : ''}`;
+                }).join('')}
+                                    </div>` : ''}
+                                    ${subDet.lottiMP?.length > 0 ? `
+                                    <div class="pl-2 border-l border-orange-200 mt-1">
+                                        ${subDet.lottiMP.map(lu =>
+                    `<p class="text-xs font-mono text-gray-400">📦 ${lu.mpNome}: ${lu.lotto}</p>`
+                ).join('')}
+                                    </div>` : ''}` : ''}
+                                </div>`;
+            }).join('')}
+                            </div>` : ''}
                             ${smlDet.lottiMP?.length > 0 ? `
                             <div class="mt-1 pl-2 border-l-2 border-orange-200">
                                 <p class="text-xs text-gray-400 mb-1">MP usate:</p>
@@ -2246,16 +2305,20 @@ const ProduzioneModule = {
 
             html += `
             <div class="border rounded-xl p-4 mb-4 bg-white">
-                <div class="flex items-center gap-2 mb-3">
+                <div class="flex items-center gap-2 mb-3 flex-wrap">
                     <span class="font-mono font-bold text-lg text-blue-800">${p.lotto}</span>
                     <span class="text-sm font-bold text-gray-700">${p.ricettaNome}</span>
                     <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
                         ${p.tipo === 'prodotto' ? 'Prodotto finito' : p.tipo === 'composto' ? 'Semilavorato composto' : p.tipo === 'sfoglia' ? 'Sfoglia' : 'Semilavorato base'}
                     </span>
+                    ${p.congelato ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">❄️ congelato</span>' : ''}
                 </div>
                 <div class="text-sm text-gray-600 mb-3">
                     📅 Prodotto il ${this.fmtData(p.data)}
-                    ${p.scadenza ? ` · Scadenza: ${this.fmtData(p.scadenza)}` : ''}
+                    ${p.congelato && p.dataAbbattimento ? ` · ❄️ abbattuto il ${this.fmtData(p.dataAbbattimento)}` : ''}
+                    ${p.dataScongelo ? ` · 🌡️ scongelato il ${this.fmtData(p.dataScongelo)}` : ''}
+                    ${p.lottoOrigineNum ? ` · da lotto <span class="font-mono">${p.lottoOrigineNum}</span>` : ''}
+                    ${!p.congelato && p.scadenza ? ` · scad. ${this.fmtData(p.scadenza)}` : ''}
                     ${p.quantita ? ` · ${p.quantita} ${p.unita}` : ''}
                     ${p.archiviato ? ' · <span class="text-gray-400">archiviato</span>' : ''}
                 </div>
@@ -2273,11 +2336,47 @@ const ProduzioneModule = {
                 ${p.lottiSML?.length > 0 ? `
                 <div class="mb-3">
                     <p class="text-xs font-bold text-gray-400 uppercase mb-1">Semilavorati usati</p>
-                    ${p.lottiSML.map(s => `
+                    ${p.lottiSML.map(s => {
+                const smlDet = this.produzioni.find(x => x.lotto === s.lotto)
+                    || this.produzioni.find(x => x.id === s.smlRefId);
+                return `
                         <div class="text-sm py-1 border-b border-gray-50 last:border-0">
                             🥩 <span class="font-medium">${s.smlNome}</span>
                             <span class="font-mono text-orange-800 ml-2">${s.lotto}</span>
-                        </div>`).join('')}
+                            ${smlDet?.congelato ? '<span class="text-xs text-blue-600 ml-1">❄️</span>' : ''}
+                            ${smlDet ? `
+                            <div class="pl-4 mt-1">
+                                ${smlDet.congelato && smlDet.dataAbbattimento ? `
+                                <p class="text-xs text-blue-600">❄️ Abbattuto il ${this.fmtData(smlDet.dataAbbattimento)}</p>` : ''}
+                                ${smlDet.lottoOrigineNum ? `
+                                <p class="text-xs text-blue-400">Da lotto: <span class="font-mono">${smlDet.lottoOrigineNum}</span></p>` : ''}
+                                ${smlDet.lottiSML?.length > 0 ? `
+                                <div class="pl-2 border-l-2 border-orange-200 mt-1">
+                                    <p class="text-xs text-orange-600 font-bold mb-1">Composto da:</p>
+                                    ${smlDet.lottiSML.map(sub => {
+                    const subDet = this.produzioni.find(x => x.lotto === sub.lotto)
+                        || this.produzioni.find(x => x.id === sub.smlRefId);
+                    return `
+                                    <div class="mb-1">
+                                        <p class="text-xs font-medium text-gray-600">🥩 ${sub.smlNome} <span class="font-mono text-orange-700">${sub.lotto}</span></p>
+                                        ${subDet?.lottiMP?.length > 0 ? `
+                                        <div class="pl-2 border-l border-orange-100 mt-0.5">
+                                            ${subDet.lottiMP.map(lu =>
+                        `<p class="text-xs font-mono text-gray-400">📦 ${lu.mpNome}: ${lu.lotto}</p>`
+                    ).join('')}
+                                        </div>` : ''}
+                                    </div>`;
+                }).join('')}
+                                </div>` : ''}
+                                ${smlDet.lottiMP?.length > 0 ? `
+                                <div class="pl-2 border-l border-orange-200 mt-1">
+                                    ${smlDet.lottiMP.map(lu =>
+                    `<p class="text-xs font-mono text-gray-400">📦 ${lu.mpNome}: ${lu.lotto}</p>`
+                ).join('')}
+                                </div>` : ''}
+                            </div>` : ''}
+                        </div>`;
+            }).join('')}
                 </div>` : ''}
 
                 ${usatoIn.length > 0 ? `
@@ -2362,33 +2461,79 @@ const ProduzioneModule = {
             const usatoIn = this.trovaUsoLotto(p.lotto);
             body += `
             <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:16px">
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap">
                     <span style="font-family:monospace;font-size:18px;font-weight:700;color:#1e40af">${p.lotto}</span>
                     <span style="font-size:14px;font-weight:700">${p.ricettaNome}</span>
+                    ${p.congelato ? '<span style="font-size:11px;background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:99px">❄️ congelato</span>' : ''}
                 </div>
                 <div style="font-size:12px;color:#6b7280;margin-bottom:12px">
                     Prodotto il ${this.fmtData(p.data)}
-                    ${p.scadenza ? ` · Scadenza: ${this.fmtData(p.scadenza)}` : ''}
+                    ${p.congelato && p.dataAbbattimento ? ` · ❄️ abbattuto il ${this.fmtData(p.dataAbbattimento)}` : ''}
+                    ${p.dataScongelo ? ` · 🌡️ scongelato il ${this.fmtData(p.dataScongelo)}` : ''}
+                    ${p.lottoOrigineNum ? ` · da lotto <span style="font-family:monospace">${p.lottoOrigineNum}</span>` : ''}
+                    ${!p.congelato && p.scadenza ? ` · Scadenza: ${this.fmtData(p.scadenza)}` : ''}
                     ${p.quantita ? ` · ${p.quantita} ${p.unita}` : ''}
                 </div>
+
                 ${mpList.length > 0 ? `
                 <div style="margin-bottom:12px">
                     <p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:4px">Materie prime</p>
-                    ${mpList.map(m => `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid #f3f4f6">
+                    ${mpList.map(m => `
+                    <div style="font-size:12px;padding:3px 0;border-bottom:1px solid #f3f4f6">
                         📦 ${m.mpNome} <span style="font-family:monospace;margin-left:8px">${m.lotto}</span>
                     </div>`).join('')}
                 </div>` : ''}
+
                 ${p.lottiSML?.length > 0 ? `
                 <div style="margin-bottom:12px">
                     <p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:4px">Semilavorati</p>
-                    ${p.lottiSML.map(s => `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid #f3f4f6">
-                        🥩 ${s.smlNome} <span style="font-family:monospace;margin-left:8px">${s.lotto}</span>
-                    </div>`).join('')}
+                    ${p.lottiSML.map(s => {
+                const smlDet = this.produzioni.find(x => x.lotto === s.lotto)
+                    || this.produzioni.find(x => x.id === s.smlRefId);
+                return `
+                    <div style="font-size:12px;padding:4px 0;border-bottom:1px solid #f3f4f6">
+                        🥩 ${s.smlNome} <span style="font-family:monospace;margin-left:8px;color:#c2410c">${s.lotto}</span>
+                        ${smlDet?.congelato ? ' ❄️' : ''}
+                        ${smlDet ? `
+                        <div style="padding-left:16px;margin-top:4px">
+                            ${smlDet.congelato && smlDet.dataAbbattimento ? `
+                            <p style="font-size:11px;color:#2563eb;margin:2px 0">❄️ Abbattuto il ${this.fmtData(smlDet.dataAbbattimento)}</p>` : ''}
+                            ${smlDet.lottoOrigineNum ? `
+                            <p style="font-size:11px;color:#93c5fd;margin:2px 0">Da lotto: <span style="font-family:monospace">${smlDet.lottoOrigineNum}</span></p>` : ''}
+                            ${smlDet.lottiSML?.length > 0 ? `
+                            <div style="padding-left:8px;border-left:2px solid #fed7aa;margin-top:4px">
+                                <p style="font-size:10px;font-weight:700;color:#c2410c;text-transform:uppercase;margin-bottom:3px">Composto da:</p>
+                                ${smlDet.lottiSML.map(sub => {
+                    const subDet = this.produzioni.find(x => x.lotto === sub.lotto)
+                        || this.produzioni.find(x => x.id === sub.smlRefId);
+                    return `
+                                <div style="margin-bottom:4px">
+                                    <p style="font-size:11px;font-weight:600;color:#374151">🥩 ${sub.smlNome} <span style="font-family:monospace;color:#c2410c">${sub.lotto}</span></p>
+                                    ${subDet?.lottiMP?.length > 0 ? `
+                                    <div style="padding-left:8px;border-left:1px solid #fed7aa;margin-top:2px">
+                                        ${subDet.lottiMP.map(lu =>
+                        `<p style="font-size:10px;font-family:monospace;color:#9ca3af">📦 ${lu.mpNome}: ${lu.lotto}</p>`
+                    ).join('')}
+                                    </div>` : ''}
+                                </div>`;
+                }).join('')}
+                            </div>` : ''}
+                            ${smlDet.lottiMP?.length > 0 ? `
+                            <div style="padding-left:8px;border-left:1px solid #fed7aa;margin-top:4px">
+                                ${smlDet.lottiMP.map(lu =>
+                    `<p style="font-size:10px;font-family:monospace;color:#9ca3af">📦 ${lu.mpNome}: ${lu.lotto}</p>`
+                ).join('')}
+                            </div>` : ''}
+                        </div>` : ''}
+                    </div>`;
+            }).join('')}
                 </div>` : ''}
+
                 ${usatoIn.length > 0 ? `
                 <div style="background:#eff6ff;border-radius:6px;padding:10px">
                     <p style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;margin-bottom:4px">Utilizzato in</p>
-                    ${usatoIn.map(u => `<div style="font-size:12px;padding:2px 0">
+                    ${usatoIn.map(u => `
+                    <div style="font-size:12px;padding:2px 0">
                         → ${u.ricettaNome} <span style="font-family:monospace;margin-left:8px">${u.lotto}</span>
                         <span style="color:#9ca3af;margin-left:8px">${this.fmtData(u.data)}</span>
                     </div>`).join('')}
