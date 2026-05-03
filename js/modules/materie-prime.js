@@ -174,6 +174,20 @@ const MateriePrimeModule = {
         this.save();
         this.render();
         Utils.showToast('✅ Lotto archiviato', 'success');
+        const mpId = document.getElementById('lotti-modal-mpId')?.value;
+        if (mpId) this.renderModalLotti(mpId);
+    },
+
+    ripristinaCarico(id) {
+        const c = this.carichi.find(c => c.id === id);
+        if (!c) return;
+        c.archiviato = false;
+        delete c.archiviatoAt;
+        this.save();
+        this.render();
+        Utils.showToast('✅ Lotto ripristinato', 'success');
+        const mpId = document.getElementById('lotti-modal-mpId')?.value;
+        if (mpId) this.renderModalLotti(mpId);
     },
 
     deleteCarico(id) {
@@ -879,7 +893,11 @@ const MateriePrimeModule = {
                     <button onclick="MateriePrimeModule.archiviaCarico('${c.id}')"
                         class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300">
                         Archivia
-                    </button>` : ''}
+                    </button>` : `
+                    <button onclick="MateriePrimeModule.ripristinaCarico('${c.id}')"
+                        class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200">
+                        ↩ Ripristina
+                    </button>`}
                     <button onclick="MateriePrimeModule.openModalEditCarico('${c.id}')"
                         class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200">
                         ✏️ Modifica
