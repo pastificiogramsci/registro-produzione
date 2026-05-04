@@ -188,6 +188,13 @@ const Storage = {
                 console.log("✅ Sync completato");
                 localStorage.setItem('lastSync', new Date().toISOString());
             }
+            // Ricarica i moduli solo se nessun modal è aperto
+            const modalAperto = document.querySelector('.modal-overlay:not(.hidden), [id$="-modal"]:not(.hidden)');
+            if (!modalAperto) {
+                if (typeof MateriePrimeModule !== 'undefined') MateriePrimeModule.init();
+                if (typeof RicetteModule !== 'undefined') RicetteModule.init();
+                if (typeof ProduzioneModule !== 'undefined') ProduzioneModule.init();
+            }
         } catch (error) {
             console.error("❌ Errore sync:", error);
         }
