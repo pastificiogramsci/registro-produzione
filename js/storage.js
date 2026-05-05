@@ -244,7 +244,6 @@ const Storage = {
         if (!this.dropboxClient) return;
 
         try {
-            // 1. Crea metadata con timestamp e device info
             const metadata = {
                 lastModified: new Date().toISOString(),
                 deviceId: this.getDeviceId(),
@@ -257,7 +256,6 @@ const Storage = {
                 device: metadata.deviceId
             });
 
-            // 2. Controlla se ci sono conflitti prima di salvare
             let dataToSave = data;
 
             try {
@@ -275,30 +273,21 @@ const Storage = {
                         remoteDevice: existingData.metadata.deviceId
                     });
 
-                    // Se i dati remoti sono più recenti dell'ultimo nostro salvataggio locale
                     if (remoteTime > localSaveTime) {
                         console.warn(`🔀 CONFLITTO RILEVATO su ${key}!`);
                         console.log('   Dati remoti più recenti, eseguo merge...');
-
-                        // Fai merge dei dati
                         dataToSave = this.mergeData(key, data, existingData.data);
-
-                        Utils.showToast(
-                            `🔀 Dati sincronizzati con altro dispositivo`,
-                            'info'
-                        );
+                        Utils.showToast(`🔀 Dati sincronizzati con altro dispositivo`, 'info');
                     } else {
                         console.log('✅ Nessun conflitto, dati locali sono più recenti');
                     }
                 }
             } catch (loadError) {
-                // File non esiste ancora o errore di lettura - ok, salva normalmente
                 if (loadError.status !== 409) {
                     console.log('ℹ️ Impossibile controllare conflitti, salvo comunque');
                 }
             }
 
-            // 3. Aggiorna localStorage se il merge ha portato dati nuovi
             if (dataToSave !== data) {
                 const storageKey = Object.entries(CONFIG.DROPBOX_PATHS)
                     .find(([, v]) => v === key)?.[0];
@@ -307,7 +296,6 @@ const Storage = {
                 }
             }
 
-            // 3b. Cripta e prepara payload con metadata
             const encryptedData = AuthManager.encrypt(dataToSave);
             if (!encryptedData) {
                 console.error('❌ Errore crittografia');
@@ -321,7 +309,6 @@ const Storage = {
                 data: encryptedData
             };
 
-            // 4. Salva su Dropbox
             const content = JSON.stringify(payload);
             const path = key.startsWith('/') ? key : `/${key}.json`;
 
@@ -332,7 +319,6 @@ const Storage = {
                 autorename: false
             });
 
-            // 5. Aggiorna timestamp del salvataggio locale
             this.lastLocalSave[key] = new Date().toISOString();
             localStorage.setItem('lastLocalSave_' + key, this.lastLocalSave[key]);
 
@@ -340,8 +326,6 @@ const Storage = {
 
         } catch (error) {
             console.error(`❌ Errore salvataggio Dropbox ${key}:`, error);
-
-            // Retry con token refresh se necessario
             if (error.status === 401 && this.dropboxRefreshToken) {
                 const newToken = await this.refreshAccessToken();
                 if (newToken) {
@@ -352,7 +336,6 @@ const Storage = {
     },
 
     mergeData(key, localData, remoteData) {
-        // Se non sono array, usa i dati locali (più sicuro)
         if (!Array.isArray(localData) || !Array.isArray(remoteData)) {
             console.log('⚠️ Dati non sono array, uso versione locale');
             return localData;
@@ -362,48 +345,29 @@ const Storage = {
         console.log(`   Locale: ${localData.length} records`);
         console.log(`   Remoto: ${remoteData.length} records`);
 
-        // ✅ NUOVO: Determina quale campo ID usare
-        const getItemId = (item) => {
-            // Fidelity usa customerId, altri usano id
-            return item.id || item.customerId || null;
-        };
+        const getItemId = (item) => item.id || item.customerId || null;
 
-        // Usa Map per merge efficiente
         const merged = new Map();
 
-        // Se locale è vuoto e remoto ha dati, usa direttamente remoto
         if (localData.length === 0 && remoteData.length > 0) {
             console.log('⚡ Locale vuoto, uso direttamente dati remoti');
             return remoteData;
         }
 
-        // 1. Aggiungi tutti i records remoti
         remoteData.forEach(item => {
             const itemId = getItemId(item);
             if (itemId) {
-                merged.set(itemId, {
-                    ...item,
-                    _source: 'remote'
-                });
-            } else {
-                console.warn('⚠️ Record remoto senza ID:', item);
+                merged.set(itemId, { ...item, _source: 'remote' });
             }
         });
 
-        // 2. Aggiungi/aggiorna con records locali
-        let added = 0;
-        let updated = 0;
-        let kept = 0;
+        let added = 0, updated = 0, kept = 0;
 
         localData.forEach(item => {
             const itemId = getItemId(item);
 
             if (!itemId) {
-                console.warn('⚠️ Record locale senza ID, lo aggiungo comunque');
-                merged.set(Math.random().toString(), {
-                    ...item,
-                    _source: 'local'
-                });
+                merged.set(Math.random().toString(), { ...item, _source: 'local' });
                 added++;
                 return;
             }
@@ -411,45 +375,24 @@ const Storage = {
             const existing = merged.get(itemId);
 
             if (!existing) {
-                // Nuovo record locale che non esiste in remoto
-                merged.set(itemId, {
-                    ...item,
-                    _source: 'local'
-                });
+                merged.set(itemId, { ...item, _source: 'local' });
                 added++;
                 console.log(`   ➕ Aggiunto nuovo: ${itemId.substring(0, 8)}...`);
             } else {
-                // Record esiste in entrambi - usa il più recente
                 const localTime = new Date(item.updatedAt || item.createdAt || 0);
                 const remoteTime = new Date(existing.updatedAt || existing.createdAt || 0);
 
-                if (localTime > remoteTime) {
-                    merged.set(itemId, {
-                        ...item,
-                        _source: 'local'
-                    });
-                    updated++;
-                    console.log(`   ✏️ Aggiornato: ${itemId.substring(0, 8)}... (locale più recente)`);
-                } else if (localTime.getTime() === remoteTime.getTime()) {
-                    // Stesso timestamp - usa locale per sicurezza
-                    merged.set(itemId, {
-                        ...item,
-                        _source: 'local'
-                    });
-                    kept++;
+                if (localTime >= remoteTime) {
+                    merged.set(itemId, { ...item, _source: 'local' });
+                    localTime > remoteTime ? updated++ : kept++;
                 } else {
-                    // Remoto più recente, mantieni quello
                     kept++;
-                    console.log(`   ⏸️ Mantenuto remoto: ${itemId.substring(0, 8)}... (remoto più recente)`);
+                    console.log(`   ⏸️ Mantenuto remoto: ${itemId.substring(0, 8)}...`);
                 }
             }
         });
 
-        // 3. Rimuovi metadata _source
-        const result = Array.from(merged.values()).map(item => {
-            const { _source, ...clean } = item;
-            return clean;
-        });
+        const result = Array.from(merged.values()).map(({ _source, ...clean }) => clean);
 
         console.log(`✅ MERGE COMPLETATO:`);
         console.log(`   Totale: ${result.length} records`);
@@ -471,7 +414,6 @@ const Storage = {
                     try {
                         const parsedData = JSON.parse(reader.result);
 
-                        // Salva metadata se presente
                         if (parsedData.metadata) {
                             console.log(`📥 Caricato da Dropbox con metadata:`, {
                                 key: key,
@@ -488,18 +430,9 @@ const Storage = {
                                 reject(new Error('Decryption failed'));
                                 return;
                             }
-
-                            // Ritorna oggetto con data E metadata
-                            resolve({
-                                data: decrypted,
-                                metadata: parsedData.metadata || null
-                            });
+                            resolve({ data: decrypted, metadata: parsedData.metadata || null });
                         } else {
-                            // Vecchio formato senza metadata
-                            resolve({
-                                data: parsedData,
-                                metadata: null
-                            });
+                            resolve({ data: parsedData, metadata: null });
                         }
                     } catch (e) {
                         reject(e);
@@ -513,37 +446,30 @@ const Storage = {
                 console.log(`📦 File ${key} non esiste ancora`);
                 return null;
             }
-
             if (error.status === 401 && this.dropboxRefreshToken) {
                 const newToken = await this.refreshAccessToken();
-                if (newToken) {
-                    return await this.loadDropbox(key);
-                }
+                if (newToken) return await this.loadDropbox(key);
             }
-
             console.error(`❌ Errore caricamento ${key}:`, error);
             return null;
         }
     },
-
 
     // ==========================================
     // INIZIALIZZAZIONE TIMESTAMP LOCALI
     // ==========================================
 
     initLastLocalSave() {
-        // Recupera i timestamp usando i path Dropbox come chiave
         const paths = Object.values(CONFIG.DROPBOX_PATHS);
-
         paths.forEach(path => {
             const saved = localStorage.getItem('lastLocalSave_' + path);
             if (saved) {
                 this.lastLocalSave[path] = saved;
             }
         });
-
         console.log('📅 Timestamp locali recuperati:', this.lastLocalSave);
     },
+
 };
 
 window.Storage = Storage;
