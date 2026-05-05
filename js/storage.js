@@ -180,45 +180,21 @@ const Storage = {
                 { path: CONFIG.DROPBOX_PATHS.SEMILAVORATI, key: CONFIG.STORAGE_KEYS.SEMILAVORATI },
                 { path: CONFIG.DROPBOX_PATHS.PRODUZIONE, key: CONFIG.STORAGE_KEYS.PRODUZIONE }
             ];
-
-            for (const { path, key } of keys) {
-                try {
-                    // 1. Scarica da Dropbox
-                    const remoto = await this.loadDropbox(path);
-
-                    if (remoto?.data) {
-                        // 2. Merge con dati locali (mergeData confronta per record)
-                        const locali = this.loadLocal(key, []);
-                        const merged = this.mergeData(path, locali, remoto.data);
-
-                        // 3. Salva il risultato merged in localStorage
-                        this.saveLocal(key, merged);
-                    }
-                } catch (e) {
-                    console.log(`ℹ️ Nessun dato remoto per ${path}`);
-                }
-                await this.delay(300);
-            }
-
-            // 4. Carica su Dropbox i dati merged
             for (const { path, key } of keys) {
                 await this.saveDropbox(path, this.loadLocal(key, []));
-                await this.delay(300);
+                await this.delay(500);
             }
-
             if (!silent) {
                 console.log("✅ Sync completato");
                 localStorage.setItem('lastSync', new Date().toISOString());
             }
-
-            // 5. Ricarica i moduli solo se nessun modal è aperto
+            // Ricarica i moduli solo se nessun modal è aperto
             const modalAperto = document.querySelector('.modal-overlay:not(.hidden), [id$="-modal"]:not(.hidden)');
             if (!modalAperto) {
                 if (typeof MateriePrimeModule !== 'undefined') MateriePrimeModule.init();
                 if (typeof RicetteModule !== 'undefined') RicetteModule.init();
                 if (typeof ProduzioneModule !== 'undefined') ProduzioneModule.init();
             }
-
         } catch (error) {
             console.error("❌ Errore sync:", error);
         }
