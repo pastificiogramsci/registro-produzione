@@ -388,8 +388,9 @@ const RicetteModule = {
         if (mps.length > 0) {
             html += `<div class="text-xs font-bold text-gray-400 uppercase px-3 pt-2 pb-1">📦 Materie Prime</div>`;
             mps.forEach(mp => {
+                const nomeEsc = mp.nome.replace(/'/g, "\\'");
                 html += `<div class="px-3 py-2 hover:bg-amber-50 cursor-pointer text-sm border-b border-gray-100 last:border-0"
-                    onclick="RicetteModule.selezionaIngrediente('mp', '${mp.id}', ${JSON.stringify(mp.nome)})">
+                    onclick="RicetteModule.selezionaIngrediente('mp', '${mp.id}', '${nomeEsc}')">
                     ${mp.nome}
                 </div>`;
             });
@@ -398,8 +399,9 @@ const RicetteModule = {
         if (ricette.length > 0) {
             html += `<div class="text-xs font-bold text-gray-400 uppercase px-3 pt-2 pb-1">🥩 Ricette</div>`;
             ricette.forEach(r => {
+                const nomeEsc = r.nome.replace(/'/g, "\\'");
                 html += `<div class="px-3 py-2 hover:bg-amber-50 cursor-pointer text-sm border-b border-gray-100 last:border-0"
-                    onclick="RicetteModule.selezionaIngrediente('sml', '${r.id}', ${JSON.stringify(r.nome)})">
+                    onclick="RicetteModule.selezionaIngrediente('sml', '${r.id}', '${nomeEsc}')">
                     ${r.nome} <span class="text-xs text-gray-400">(${r.categoria})</span>
                 </div>`;
             });
