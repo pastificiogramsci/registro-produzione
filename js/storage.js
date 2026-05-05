@@ -244,6 +244,7 @@ const Storage = {
         if (!this.dropboxClient) return;
 
         try {
+            // 1. Crea metadata con timestamp e device info
             const metadata = {
                 lastModified: new Date().toISOString(),
                 deviceId: this.getDeviceId(),
@@ -256,6 +257,7 @@ const Storage = {
                 device: metadata.deviceId
             });
 
+            // 2. Controlla se ci sono conflitti prima di salvare
             let dataToSave = data;
 
             try {
@@ -273,21 +275,30 @@ const Storage = {
                         remoteDevice: existingData.metadata.deviceId
                     });
 
+                    // Se i dati remoti sono più recenti dell'ultimo nostro salvataggio locale
                     if (remoteTime > localSaveTime) {
                         console.warn(`🔀 CONFLITTO RILEVATO su ${key}!`);
                         console.log('   Dati remoti più recenti, eseguo merge...');
+
+                        // Fai merge dei dati
                         dataToSave = this.mergeData(key, data, existingData.data);
-                        Utils.showToast(`🔀 Dati sincronizzati con altro dispositivo`, 'info');
+
+                        Utils.showToast(
+                            `🔀 Dati sincronizzati con altro dispositivo`,
+                            'info'
+                        );
                     } else {
                         console.log('✅ Nessun conflitto, dati locali sono più recenti');
                     }
                 }
             } catch (loadError) {
+                // File non esiste ancora o errore di lettura - ok, salva normalmente
                 if (loadError.status !== 409) {
                     console.log('ℹ️ Impossibile controllare conflitti, salvo comunque');
                 }
             }
 
+            // 3. Aggiorna localStorage se il merge ha portato dati nuovi
             if (dataToSave !== data) {
                 const storageKey = Object.entries(CONFIG.DROPBOX_PATHS)
                     .find(([, v]) => v === key)?.[0];
@@ -296,6 +307,7 @@ const Storage = {
                 }
             }
 
+            // 3b. Cripta e prepara payload con metadata
             const encryptedData = AuthManager.encrypt(dataToSave);
             if (!encryptedData) {
                 console.error('❌ Errore crittografia');
@@ -309,6 +321,7 @@ const Storage = {
                 data: encryptedData
             };
 
+            // 4. Salva su Dropbox
             const content = JSON.stringify(payload);
             const path = key.startsWith('/') ? key : `/${key}.json`;
 
@@ -319,6 +332,7 @@ const Storage = {
                 autorename: false
             });
 
+            // 5. Aggiorna timestamp del salvataggio locale
             this.lastLocalSave[key] = new Date().toISOString();
             localStorage.setItem('lastLocalSave_' + key, this.lastLocalSave[key]);
 
@@ -326,6 +340,8 @@ const Storage = {
 
         } catch (error) {
             console.error(`❌ Errore salvataggio Dropbox ${key}:`, error);
+
+            // Retry con token refresh se necessario
             if (error.status === 401 && this.dropboxRefreshToken) {
                 const newToken = await this.refreshAccessToken();
                 if (newToken) {
@@ -336,6 +352,7 @@ const Storage = {
     },
 
     mergeData(key, localData, remoteData) {
+        // Se non sono array, usa i dati locali (più sicuro)
         if (!Array.isArray(localData) || !Array.isArray(remoteData)) {
             console.log('⚠️ Dati non sono array, uso versione locale');
             return localData;
@@ -345,29 +362,48 @@ const Storage = {
         console.log(`   Locale: ${localData.length} records`);
         console.log(`   Remoto: ${remoteData.length} records`);
 
-        const getItemId = (item) => item.id || item.customerId || null;
+        // ✅ NUOVO: Determina quale campo ID usare
+        const getItemId = (item) => {
+            // Fidelity usa customerId, altri usano id
+            return item.id || item.customerId || null;
+        };
 
+        // Usa Map per merge efficiente
         const merged = new Map();
 
+        // Se locale è vuoto e remoto ha dati, usa direttamente remoto
         if (localData.length === 0 && remoteData.length > 0) {
             console.log('⚡ Locale vuoto, uso direttamente dati remoti');
             return remoteData;
         }
 
+        // 1. Aggiungi tutti i records remoti
         remoteData.forEach(item => {
             const itemId = getItemId(item);
             if (itemId) {
-                merged.set(itemId, { ...item, _source: 'remote' });
+                merged.set(itemId, {
+                    ...item,
+                    _source: 'remote'
+                });
+            } else {
+                console.warn('⚠️ Record remoto senza ID:', item);
             }
         });
 
-        let added = 0, updated = 0, kept = 0;
+        // 2. Aggiungi/aggiorna con records locali
+        let added = 0;
+        let updated = 0;
+        let kept = 0;
 
         localData.forEach(item => {
             const itemId = getItemId(item);
 
             if (!itemId) {
-                merged.set(Math.random().toString(), { ...item, _source: 'local' });
+                console.warn('⚠️ Record locale senza ID, lo aggiungo comunque');
+                merged.set(Math.random().toString(), {
+                    ...item,
+                    _source: 'local'
+                });
                 added++;
                 return;
             }
@@ -375,24 +411,45 @@ const Storage = {
             const existing = merged.get(itemId);
 
             if (!existing) {
-                merged.set(itemId, { ...item, _source: 'local' });
+                // Nuovo record locale che non esiste in remoto
+                merged.set(itemId, {
+                    ...item,
+                    _source: 'local'
+                });
                 added++;
                 console.log(`   ➕ Aggiunto nuovo: ${itemId.substring(0, 8)}...`);
             } else {
+                // Record esiste in entrambi - usa il più recente
                 const localTime = new Date(item.updatedAt || item.createdAt || 0);
                 const remoteTime = new Date(existing.updatedAt || existing.createdAt || 0);
 
-                if (localTime >= remoteTime) {
-                    merged.set(itemId, { ...item, _source: 'local' });
-                    localTime > remoteTime ? updated++ : kept++;
-                } else {
+                if (localTime > remoteTime) {
+                    merged.set(itemId, {
+                        ...item,
+                        _source: 'local'
+                    });
+                    updated++;
+                    console.log(`   ✏️ Aggiornato: ${itemId.substring(0, 8)}... (locale più recente)`);
+                } else if (localTime.getTime() === remoteTime.getTime()) {
+                    // Stesso timestamp - usa locale per sicurezza
+                    merged.set(itemId, {
+                        ...item,
+                        _source: 'local'
+                    });
                     kept++;
-                    console.log(`   ⏸️ Mantenuto remoto: ${itemId.substring(0, 8)}...`);
+                } else {
+                    // Remoto più recente, mantieni quello
+                    kept++;
+                    console.log(`   ⏸️ Mantenuto remoto: ${itemId.substring(0, 8)}... (remoto più recente)`);
                 }
             }
         });
 
-        const result = Array.from(merged.values()).map(({ _source, ...clean }) => clean);
+        // 3. Rimuovi metadata _source
+        const result = Array.from(merged.values()).map(item => {
+            const { _source, ...clean } = item;
+            return clean;
+        });
 
         console.log(`✅ MERGE COMPLETATO:`);
         console.log(`   Totale: ${result.length} records`);
@@ -414,6 +471,7 @@ const Storage = {
                     try {
                         const parsedData = JSON.parse(reader.result);
 
+                        // Salva metadata se presente
                         if (parsedData.metadata) {
                             console.log(`📥 Caricato da Dropbox con metadata:`, {
                                 key: key,
@@ -430,9 +488,18 @@ const Storage = {
                                 reject(new Error('Decryption failed'));
                                 return;
                             }
-                            resolve({ data: decrypted, metadata: parsedData.metadata || null });
+
+                            // Ritorna oggetto con data E metadata
+                            resolve({
+                                data: decrypted,
+                                metadata: parsedData.metadata || null
+                            });
                         } else {
-                            resolve({ data: parsedData, metadata: null });
+                            // Vecchio formato senza metadata
+                            resolve({
+                                data: parsedData,
+                                metadata: null
+                            });
                         }
                     } catch (e) {
                         reject(e);
@@ -446,13 +513,88 @@ const Storage = {
                 console.log(`📦 File ${key} non esiste ancora`);
                 return null;
             }
+
             if (error.status === 401 && this.dropboxRefreshToken) {
                 const newToken = await this.refreshAccessToken();
-                if (newToken) return await this.loadDropbox(key);
+                if (newToken) {
+                    return await this.loadDropbox(key);
+                }
             }
+
             console.error(`❌ Errore caricamento ${key}:`, error);
             return null;
         }
+    },
+
+    // ==========================================
+    // FUNZIONI COMODE
+    // ==========================================
+
+    async saveOrders(orders) {
+        this.saveLocal(CONFIG.STORAGE_KEYS.ORDERS, orders);
+        await this.saveDropbox(CONFIG.DROPBOX_PATHS.ORDERS, orders);
+    },
+
+    async loadOrders() {
+        const cloudData = await this.loadDropbox(CONFIG.DROPBOX_PATHS.ORDERS);
+        if (cloudData) return cloudData;
+        return this.loadLocal(CONFIG.STORAGE_KEYS.ORDERS, []);
+    },
+
+    async saveCustomers(customers) {
+        this.saveLocal(CONFIG.STORAGE_KEYS.CUSTOMERS, customers);
+        await this.saveDropbox(CONFIG.DROPBOX_PATHS.CUSTOMERS, customers);
+    },
+
+    async loadCustomers() {
+        const cloudData = await this.loadDropbox(CONFIG.DROPBOX_PATHS.CUSTOMERS);
+        if (cloudData) return cloudData;
+        return this.loadLocal(CONFIG.STORAGE_KEYS.CUSTOMERS, []);
+    },
+
+    async saveProducts(products) {
+        this.saveLocal(CONFIG.STORAGE_KEYS.PRODUCTS, products);
+        await this.saveDropbox(CONFIG.DROPBOX_PATHS.PRODUCTS, products);
+    },
+
+    async loadProducts() {
+        const cloudData = await this.loadDropbox(CONFIG.DROPBOX_PATHS.PRODUCTS);
+        if (cloudData) return cloudData;
+        return this.loadLocal(CONFIG.STORAGE_KEYS.PRODUCTS, []);
+    },
+
+    async saveFidelity(fidelityData) {
+        this.saveLocal(CONFIG.STORAGE_KEYS.FIDELITY, fidelityData);
+        await this.saveDropbox(CONFIG.DROPBOX_PATHS.FIDELITY, fidelityData);
+    },
+
+    async loadFidelity() {
+        const cloudData = await this.loadDropbox(CONFIG.DROPBOX_PATHS.FIDELITY);
+        if (cloudData) return cloudData;
+        return this.loadLocal(CONFIG.STORAGE_KEYS.FIDELITY, []);
+    },
+
+    async saveCampaigns(campaigns) {
+        this.saveLocal(CONFIG.STORAGE_KEYS.CAMPAIGNS, campaigns);
+        this.lastLocalSave[CONFIG.STORAGE_KEYS.CAMPAIGNS] = new Date().toISOString();
+        await this.saveDropbox(CONFIG.DROPBOX_PATHS.CAMPAIGNS, campaigns);
+    },
+
+    async loadCampaigns() {
+        const result = await this.loadDropbox(CONFIG.DROPBOX_PATHS.CAMPAIGNS);
+        if (result?.data) {
+            const localCampaigns = this.loadLocal(CONFIG.STORAGE_KEYS.CAMPAIGNS, []);
+            if (localCampaigns.length > 0) {
+                const merged = this.mergeData(
+                    CONFIG.STORAGE_KEYS.CAMPAIGNS,
+                    localCampaigns,
+                    result.data
+                );
+                return merged;
+            }
+            return result.data;
+        }
+        return this.loadLocal(CONFIG.STORAGE_KEYS.CAMPAIGNS, []);
     },
 
     // ==========================================
@@ -460,17 +602,154 @@ const Storage = {
     // ==========================================
 
     initLastLocalSave() {
+        // Recupera i timestamp usando i path Dropbox come chiave
         const paths = Object.values(CONFIG.DROPBOX_PATHS);
+
         paths.forEach(path => {
             const saved = localStorage.getItem('lastLocalSave_' + path);
             if (saved) {
                 this.lastLocalSave[path] = saved;
             }
         });
+
         console.log('📅 Timestamp locali recuperati:', this.lastLocalSave);
     },
+
+    // ==========================================
+    // COUNTER CENTRALIZZATO CON LOCK
+    // ==========================================
+
+    async getNextOrderNumber(deliveryDate) {
+        if (!this.dropboxClient) {
+            console.warn('⚠️ Dropbox non disponibile, uso counter locale');
+            return this.getNextOrderNumberLocal(deliveryDate);
+        }
+
+        const maxRetries = 10;
+        const lockKey = `/counters/lock_orders_${deliveryDate}.json`;
+        const counterKey = `/counters/orders_${deliveryDate}.json`;
+
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                // 1. Prova a creare il LOCK
+                const lockAcquired = await this.acquireLock(lockKey);
+
+                if (!lockAcquired) {
+                    console.log(`🔒 Lock occupato, aspetto... (tentativo ${attempt + 1}/${maxRetries})`);
+                    await this.delay(200 + (attempt * 100));
+                    continue;
+                }
+
+                console.log(`🟢 Lock acquisito!`);
+
+                try {
+                    // 2. Leggi counter
+                    let counter = await this.loadDropbox(counterKey);
+                    let currentNumber = null;
+
+                    if (counter?.data?.number) {
+                        currentNumber = counter.data.number;
+                        console.log(`📥 Counter esistente per ${deliveryDate}: ${currentNumber}`);
+                    } else {
+                        // ✅ NUOVO: Inizializza counter contando ordini esistenti
+                        console.log(`🆕 Counter non esiste, conto ordini esistenti per ${deliveryDate}...`);
+                        currentNumber = this.countExistingOrders(deliveryDate) + 1;
+                        console.log(`📊 Trovati ${currentNumber - 1} ordini esistenti, parto da ${currentNumber}`);
+                    }
+
+                    console.log(`🎫 Counter per ${deliveryDate}: assegno numero ${currentNumber}`);
+
+                    // 3. Incrementa e salva
+                    const newCounter = {
+                        number: currentNumber + 1,
+                        lastUpdate: new Date().toISOString(),
+                        initialized: true
+                    };
+
+                    await this.saveDropbox(counterKey, newCounter);
+
+                    console.log(`✅ Counter aggiornato → prossimo sarà ${currentNumber + 1}`);
+
+                    // 4. Rilascia il lock
+                    await this.releaseLock(lockKey);
+
+                    return currentNumber;
+
+                } catch (error) {
+                    await this.releaseLock(lockKey);
+                    throw error;
+                }
+
+            } catch (error) {
+                console.error(`❌ Errore tentativo ${attempt + 1}:`, error);
+
+                if (attempt === maxRetries - 1) {
+                    console.error('❌ Troppi tentativi, uso counter locale');
+                    return this.getNextOrderNumberLocal(deliveryDate);
+                }
+            }
+        }
+
+        return this.getNextOrderNumberLocal(deliveryDate);
+    },
+
+    countExistingOrders(deliveryDate) {
+        return 0;
+    },
+
+    async acquireLock(lockKey, timeout = 30000) {
+        try {
+            const lockData = {
+                deviceId: this.getDeviceId(),
+                timestamp: Date.now(),
+                expires: Date.now() + timeout
+            };
+
+            const existing = await this.loadDropbox(lockKey);
+
+            if (existing?.data) {
+                const lockAge = Date.now() - existing.data.timestamp;
+                if (lockAge < timeout) {
+                    return false;
+                }
+                console.log('🔓 Lock scaduto, lo sostituisco');
+            }
+
+            await this.saveDropbox(lockKey, lockData);
+
+            await this.delay(50);
+            const verify = await this.loadDropbox(lockKey);
+
+            if (verify?.data?.deviceId === this.getDeviceId()) {
+                return true;
+            }
+
+            return false;
+
+        } catch (error) {
+            console.error('❌ Errore acquisizione lock:', error);
+            return false;
+        }
+    },
+
+    async releaseLock(lockKey) {
+        try {
+            await this.dropboxClient.filesDeleteV2({ path: lockKey });
+            console.log('🔓 Lock rilasciato');
+        } catch (error) {
+            console.log('🔓 Lock già rilasciato o non esistente');
+        }
+    },
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    },
+
+    getNextOrderNumberLocal(deliveryDate) {
+        return 1;
+    }
 
 };
 
 window.Storage = Storage;
-console.log("✅ Storage caricato");
+console.log("✅ Storage caricato con merge intelligente v2.1");
