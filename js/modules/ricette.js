@@ -294,13 +294,10 @@ const RicetteModule = {
         document.getElementById('ric-form-id').value = '';
         document.getElementById('ric-form-nome').value = '';
         document.getElementById('ric-form-categoria').value = 'Pasta';
-        document.getElementById('ric-form-sml').checked = false;
-        document.getElementById('ric-form-vendibile').checked = false;
         document.getElementById('ric-form-note').value = '';
         document.getElementById('ric-form-shelf').value = '';
         document.getElementById('ric-form-resa').value = '';
         document.getElementById('ric-form-resa-unita').value = 'kg';
-        document.getElementById('ric-form-vendibile-row').classList.add('hidden');
         document.getElementById('ric-modal').classList.remove('hidden');
         document.getElementById('ric-form-nome').focus();
     },
