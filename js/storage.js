@@ -181,26 +181,18 @@ const Storage = {
                 { path: CONFIG.DROPBOX_PATHS.PRODUZIONE, key: CONFIG.STORAGE_KEYS.PRODUZIONE }
             ];
 
-            // 1. SCARICA da Dropbox e aggiorna localStorage
-            let aggiornato = false;
             for (const { path, key } of keys) {
                 try {
+                    // 1. Scarica da Dropbox
                     const remoto = await this.loadDropbox(path);
-                    if (remoto?.data) {
-                        const remoteTime = remoto.metadata?.lastModified
-                            ? new Date(remoto.metadata.lastModified)
-                            : new Date(0);
-                        const localTime = this.lastLocalSave[path]
-                            ? new Date(this.lastLocalSave[path])
-                            : new Date(0);
 
-                        if (remoteTime > localTime) {
-                            console.log(`⬇️ Dati più recenti da Dropbox per ${path}`);
-                            this.saveLocal(key, remoto.data);
-                            this.lastLocalSave[path] = remoto.metadata.lastModified;
-                            localStorage.setItem('lastLocalSave_' + path, remoto.metadata.lastModified);
-                            aggiornato = true;
-                        }
+                    if (remoto?.data) {
+                        // 2. Merge con dati locali (mergeData confronta per record)
+                        const locali = this.loadLocal(key, []);
+                        const merged = this.mergeData(path, locali, remoto.data);
+
+                        // 3. Salva il risultato merged in localStorage
+                        this.saveLocal(key, merged);
                     }
                 } catch (e) {
                     console.log(`ℹ️ Nessun dato remoto per ${path}`);
@@ -208,7 +200,7 @@ const Storage = {
                 await this.delay(300);
             }
 
-            // 2. CARICA su Dropbox i dati locali aggiornati
+            // 4. Carica su Dropbox i dati merged
             for (const { path, key } of keys) {
                 await this.saveDropbox(path, this.loadLocal(key, []));
                 await this.delay(300);
@@ -219,7 +211,7 @@ const Storage = {
                 localStorage.setItem('lastSync', new Date().toISOString());
             }
 
-            // 3. Ricarica i moduli solo se nessun modal è aperto
+            // 5. Ricarica i moduli solo se nessun modal è aperto
             const modalAperto = document.querySelector('.modal-overlay:not(.hidden), [id$="-modal"]:not(.hidden)');
             if (!modalAperto) {
                 if (typeof MateriePrimeModule !== 'undefined') MateriePrimeModule.init();
