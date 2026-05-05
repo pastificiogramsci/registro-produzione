@@ -377,8 +377,9 @@ const MateriePrimeModule = {
 
                 // Il lotto deve essere arrivato prima o nel giorno della produzione
                 const dataArrivo = new Date(c.dataArrivo);
+                dataArrivo.setHours(0, 0, 0, 0);
                 if (dataArrivo > dataP) return false;
-
+                
                 // Se ha una scadenza, deve essere ancora valida alla data di produzione
                 if (c.scadenza && new Date(c.scadenza) < dataP) return false;
 
